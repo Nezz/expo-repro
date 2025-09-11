@@ -24,16 +24,30 @@ export default function CustomDrawerContent(props: DrawerContentComponentProps) 
                 </View>
             </Link.Trigger>
             <Link.Preview />
-            <Link.Menu>
-            <Link.MenuAction title="Share" icon="square.and.arrow.up" onPress={() => {}} />
-            <Link.MenuAction title="Delete" icon="trash" destructive onPress={() => {}} />
-            </Link.Menu>
         </Link>
 
         <Link href={'/explore'}>
             <Link.Trigger>
                 <View>
                     <Text style={styles.button}>Explore</Text>
+                </View>
+            </Link.Trigger>
+            <Link.Preview />
+        </Link>
+
+        <Link href={'/test/black'}>
+            <Link.Trigger>
+                <View>
+                    <Text style={styles.button}>Black</Text>
+                </View>
+            </Link.Trigger>
+            <Link.Preview />
+        </Link>
+
+        <Link href={'/test/white'}>
+            <Link.Trigger>
+                <View>
+                    <Text style={styles.button}>White</Text>
                 </View>
             </Link.Trigger>
             <Link.Preview />

@@ -42,6 +42,12 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Drawer.Screen
+        name="test/[id]/index"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Drawer>
   );
 }
