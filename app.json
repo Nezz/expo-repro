@@ -35,7 +35,10 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-audio",
+      "expo-speech-recognition",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
