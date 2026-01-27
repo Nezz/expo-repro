@@ -11,6 +11,8 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@braze/expo-plugin": "^3.2.0",
+    "@braze/react-native-sdk": "^18.0.0",
     "@expo/metro-runtime": "~6.1.2",
     "@expo/server": "^0.7.5",
     "@expo/vector-icons": "^15.0.3",
