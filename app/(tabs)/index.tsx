@@ -5,7 +5,7 @@ import { HelloWave } from "@/components/HelloWave";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
-import Braze from "@braze/react-native-sdk";
+import { Braze } from "@/lib/braze";
 import { useEffect } from "react";
 
 export default function HomeScreen() {
