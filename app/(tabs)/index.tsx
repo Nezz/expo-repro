@@ -1,75 +1,132 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { useEffect, useRef, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
+  const [log, setLog] = useState<string[]>([]);
+  const prevTop = useRef(insets.top);
+
+  useEffect(() => {
+    if (insets.top !== prevTop.current) {
+      const entry = `${new Date().toLocaleTimeString()}: top ${prevTop.current} → ${insets.top}`;
+      setLog((prev) => [entry, ...prev].slice(0, 30));
+      prevTop.current = insets.top;
+    }
+  }, [insets.top]);
+
+  const isZero = insets.top === 0;
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 48) }]}>
+      <Text style={styles.title}>Safe Area Insets Bug Repro</Text>
+      <Text style={styles.subtitle}>PostHog Session Replay + edgeToEdge + New Arch</Text>
+
+      <View style={[styles.valueBox, isZero && styles.valueBoxError]}>
+        <Text style={styles.label}>insets.top</Text>
+        <Text style={[styles.value, isZero && styles.valueError]}>{insets.top}</Text>
+      </View>
+
+      <View style={styles.insetsRow}>
+        <InsetCell label="bottom" value={insets.bottom} />
+        <InsetCell label="left" value={insets.left} />
+        <InsetCell label="right" value={insets.right} />
+      </View>
+
+      <Text style={styles.logTitle}>Change log:</Text>
+      {log.length === 0 && <Text style={styles.logEmpty}>Waiting for inset changes...</Text>}
+      {log.map((entry, i) => (
+        <Text key={i} style={styles.logEntry}>{entry}</Text>
+      ))}
+    </View>
+  );
+}
+
+function InsetCell({ label, value }: { label: string; value: number }) {
+  return (
+    <View style={styles.cell}>
+      <Text style={styles.cellLabel}>{label}</Text>
+      <Text style={styles.cellValue}>{value}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: '#0A0F1A',
+    paddingHorizontal: 24,
   },
-  stepContainer: {
-    gap: 8,
+  title: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  subtitle: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginBottom: 24,
+  },
+  valueBox: {
+    backgroundColor: '#1F2937',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  valueBoxError: {
+    backgroundColor: '#7F1D1D',
+  },
+  label: {
+    color: '#9CA3AF',
+    fontSize: 14,
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  value: {
+    color: '#00D296',
+    fontSize: 48,
+    fontWeight: '700',
+  },
+  valueError: {
+    color: '#EF4444',
+  },
+  insetsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  cell: {
+    flex: 1,
+    backgroundColor: '#1F2937',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+  },
+  cellLabel: {
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+  cellValue: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  logTitle: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  logEmpty: {
+    color: '#6B7280',
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
+  logEntry: {
+    color: '#D1D5DB',
+    fontSize: 13,
+    fontFamily: 'monospace',
+    marginBottom: 2,
   },
 });
