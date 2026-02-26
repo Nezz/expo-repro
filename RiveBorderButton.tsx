@@ -1,7 +1,13 @@
-import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Fit, RiveView, useRive, useRiveFile } from '@rive-app/react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Fit,
+  RiveView,
+  useRiveBoolean,
+  useRiveFile,
+  useViewModelInstance,
+} from "@rive-app/react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 interface RiveBorderButtonProps {
   label: string;
@@ -19,15 +25,23 @@ interface RiveBorderButtonProps {
  * The problem: after migrating to the new Rive SDK (0.2.x),
  * toggling `isFocused` between two instances doesn't animate correctly.
  */
-export function RiveBorderButton({ label, isFocused, onPress }: RiveBorderButtonProps) {
+export function RiveBorderButton({
+  label,
+  isFocused,
+  onPress,
+}: RiveBorderButtonProps) {
   const { riveFile } = useRiveFile(
-    'https://dh8dcfhaxrjo9.cloudfront.net/Rive/Border.riv',
+    "https://dh8dcfhaxrjo9.cloudfront.net/Rive/GradientBorder.riv",
   );
-  const { riveViewRef, setHybridRef } = useRive();
+  const viewModelInstance = useViewModelInstance(riveFile);
+  const { setValue: setIsFocused } = useRiveBoolean(
+    "isFocused",
+    viewModelInstance,
+  );
 
   useEffect(() => {
-    riveViewRef?.setBooleanInputValue('isFocused', isFocused);
-  }, [isFocused, riveViewRef]);
+    setIsFocused(isFocused);
+  }, [isFocused]);
 
   return (
     <Pressable onPress={onPress}>
@@ -39,7 +53,7 @@ export function RiveBorderButton({ label, isFocused, onPress }: RiveBorderButton
             autoPlay
             fit={Fit.Layout}
             style={styles.riveAnimation}
-            hybridRef={setHybridRef}
+            dataBind={viewModelInstance}
           />
         )}
 
