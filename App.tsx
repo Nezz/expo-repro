@@ -1,33 +1,39 @@
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Rive, { Fit, RiveRef } from 'rive-react-native';
+
+import { RiveBorderButton } from './RiveBorderButton';
 
 export default function App() {
-  const [isFocused, setIsFocused] = useState(false);
-  const riveRef = useRef<RiveRef>(null);
-
-  useEffect(() => {
-    riveRef.current?.setInputState('State', 'isFocused', isFocused);
-    if (!isFocused) {
-      riveRef.current?.reset();
-    }
-  }, [isFocused]);
+  const [selectedButton, setSelectedButton] = useState<'A' | 'B'>('A');
 
   return (
     <View style={styles.container}>
-      <Pressable style={styles.button} onPress={() => setIsFocused((prev) => !prev)}>
-        <Rive
-          url="https://dh8dcfhaxrjo9.cloudfront.net/Rive/Border.riv"
-          autoplay
-          fit={Fit.Layout}
-          style={styles.riveAnimation}
-          ref={riveRef}
-        />
-        <Text style={styles.buttonText}>{isFocused ? 'Focused' : 'Tap to Focus'}</Text>
-      </Pressable>
-
       <StatusBar style="light" />
+      <Text style={styles.title}>Rive Border Toggle Repro</Text>
+      <Text style={styles.subtitle}>
+        Press a button to toggle the border animation to it
+      </Text>
+
+      <View style={styles.buttonsRow}>
+        <RiveBorderButton
+          label="Button A"
+          isFocused={selectedButton === 'A'}
+          onPress={() => setSelectedButton('A')}
+        />
+
+        <RiveBorderButton
+          label="Button B"
+          isFocused={selectedButton === 'B'}
+          onPress={() => setSelectedButton('B')}
+        />
+      </View>
+
+      <View style={styles.statusContainer}>
+        <Text style={styles.statusText}>
+          Currently selected: <Text style={styles.statusHighlight}>{selectedButton}</Text>
+        </Text>
+      </View>
     </View>
   );
 }
@@ -35,31 +41,39 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f23',
+    backgroundColor: '#0c1027',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    gap: 32,
   },
-  button: {
-    backgroundColor: '#1a1a2e',
-    paddingHorizontal: 32,
-    paddingVertical: 20,
-    borderRadius: 16,
-    maxWidth: 400,
-    width: '100%',
-    alignItems: 'center',
+  title: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 8,
   },
-  riveAnimation: {
-    position: 'absolute',
-    top: -25,
-    left: -25,
-    right: -28,
-    bottom: -28,
+  subtitle: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginBottom: 40,
+    textAlign: 'center',
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  buttonsRow: {
+    flexDirection: 'row',
+    gap: 24,
+  },
+  statusContainer: {
+    marginTop: 40,
+    padding: 16,
+    backgroundColor: '#1a1f3d',
+    borderRadius: 12,
+  },
+  statusText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+  },
+  statusHighlight: {
+    color: '#00B78B',
+    fontWeight: '700',
   },
 });
