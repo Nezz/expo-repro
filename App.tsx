@@ -1,33 +1,47 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 
 import { RiveBorderButton } from './RiveBorderButton';
 
+const BUTTONS = [
+  { id: 'A', label: 'Button A' },
+  { id: 'B', label: 'Button B' },
+  { id: 'C', label: 'Button C' },
+  { id: 'D', label: 'Button D' },
+  { id: 'E', label: 'Button E' },
+  { id: 'F', label: 'Button F' },
+  { id: 'G', label: 'Button G' },
+  { id: 'H', label: 'Button H' },
+];
+
 export default function App() {
-  const [selectedButton, setSelectedButton] = useState<'A' | 'B'>('A');
+  const [selectedButton, setSelectedButton] = useState('A');
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
       <Text style={styles.title}>Rive Border Toggle Repro</Text>
       <Text style={styles.subtitle}>
-        Press a button to toggle the border animation to it
+        Scroll horizontally & press a button to toggle the border animation
       </Text>
 
-      <View style={styles.buttonsRow}>
-        <RiveBorderButton
-          label="Button A"
-          isFocused={selectedButton === 'A'}
-          onPress={() => setSelectedButton('A')}
-        />
-
-        <RiveBorderButton
-          label="Button B"
-          isFocused={selectedButton === 'B'}
-          onPress={() => setSelectedButton('B')}
-        />
-      </View>
+      <FlatList
+        data={BUTTONS}
+        keyExtractor={(item) => item.id}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={() => <View style={{ width: 24 }} />}
+        renderItem={({ item }) => (
+          <RiveBorderButton
+            label={item.label}
+            isFocused={selectedButton === item.id}
+            onPress={() => setSelectedButton(item.id)}
+          />
+        )}
+      />
 
       <View style={styles.statusContainer}>
         <Text style={styles.statusText}>
@@ -58,9 +72,12 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     textAlign: 'center',
   },
-  buttonsRow: {
-    flexDirection: 'row',
-    gap: 24,
+  list: {
+    flexGrow: 0,
+  },
+  listContent: {
+    paddingHorizontal: 30,
+    paddingVertical: 30,
   },
   statusContainer: {
     marginTop: 40,
