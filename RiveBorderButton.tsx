@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   Fit,
   RiveView,
+  useRive,
   useRiveBoolean,
   useRiveFile,
   useViewModelInstance,
@@ -30,6 +31,7 @@ export function RiveBorderButton({
   isFocused,
   onPress,
 }: RiveBorderButtonProps) {
+  const { riveViewRef, setHybridRef } = useRive();
   const { riveFile } = useRiveFile(
     "https://dh8dcfhaxrjo9.cloudfront.net/Rive/GradientBorder.riv",
   );
@@ -41,25 +43,27 @@ export function RiveBorderButton({
 
   useEffect(() => {
     setIsFocused(isFocused);
-  }, [isFocused]);
+    riveViewRef?.playIfNeeded(); // This animation stops when focused is false, so we need to restart it
+  }, [isFocused, setIsFocused, riveViewRef]);
 
   return (
     <Pressable onPress={onPress}>
       <View style={styles.wrapper}>
         {/* Rive border animation layer */}
-        {riveFile && (
+        {riveFile && viewModelInstance && (
           <RiveView
             file={riveFile}
             autoPlay
             fit={Fit.Layout}
             style={styles.riveAnimation}
             dataBind={viewModelInstance}
+            hybridRef={setHybridRef}
           />
         )}
 
         {/* Gradient border + inner content */}
         <LinearGradient
-          colors={isFocused ? ['#00B78B', '#443ABC'] : ['#354190', '#4250BA']}
+          colors={isFocused ? ["#00B78B", "#443ABC"] : ["#354190", "#4250BA"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0.8, y: 1 }}
           style={styles.gradient}
@@ -67,7 +71,7 @@ export function RiveBorderButton({
           <View style={styles.inner}>
             <Text style={styles.label}>{label}</Text>
             <Text style={styles.state}>
-              {isFocused ? '● Focused' : '○ Not focused'}
+              {isFocused ? "● Focused" : "○ Not focused"}
             </Text>
           </View>
         </LinearGradient>
@@ -79,10 +83,10 @@ export function RiveBorderButton({
 const styles = StyleSheet.create({
   wrapper: {
     borderRadius: 16,
-    overflow: 'visible',
+    overflow: "visible",
   },
   riveAnimation: {
-    position: 'absolute',
+    position: "absolute",
     top: -25,
     left: -25,
     right: -28,
@@ -93,20 +97,20 @@ const styles = StyleSheet.create({
     padding: 1,
   },
   inner: {
-    backgroundColor: '#141936',
+    backgroundColor: "#141936",
     borderRadius: 15,
     paddingVertical: 24,
     paddingHorizontal: 32,
-    alignItems: 'center',
+    alignItems: "center",
     gap: 8,
   },
   label: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   state: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 12,
   },
 });
