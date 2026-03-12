@@ -33,7 +33,7 @@ export function RiveBorderButton({
 }: RiveBorderButtonProps) {
   const { riveViewRef, setHybridRef } = useRive();
   const { riveFile } = useRiveFile(
-    "https://dh8dcfhaxrjo9.cloudfront.net/Rive/GradientBorder.riv",
+    require("./assets/GradientBorder.riv"),
   );
   const viewModelInstance = useViewModelInstance(riveFile);
   const { setValue: setIsFocused } = useRiveBoolean(

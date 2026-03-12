@@ -9,7 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@rive-app/react-native": "^0.2.3",
+    "@rive-app/react-native": "^0.2.7",
     "expo": "~55.0.2",
     "expo-linear-gradient": "~55.0.8",
     "expo-status-bar": "~55.0.4",
