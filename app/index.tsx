@@ -1,36 +1,75 @@
-import { Link } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  getRecordingPermissionsAsync,
+  requestRecordingPermissionsAsync,
+} from 'expo-audio';
 
-/**
- * Minimal repro: View inside Link.Trigger cannot vertically center its child.
- *
- * The "selected" highlight is always visible so the misalignment is obvious.
- * The View applies justifyContent:'center' but the Text is not vertically
- * centered within the highlighted Link area.
- */
 export default function Index() {
+  const [permStatus, setPermStatus] = useState<{
+    status: string;
+    expires: string;
+    granted: boolean;
+    canAskAgain: boolean;
+  } | null>(null);
+
+  const checkPermissions = async () => {
+    const { status, expires, granted, canAskAgain } =
+      await getRecordingPermissionsAsync();
+    console.log(
+      'microphone permission status',
+      status,
+      expires,
+      granted,
+      canAskAgain,
+    );
+    setPermStatus({ status, expires: String(expires), granted, canAskAgain });
+  };
+
+  useEffect(() => {
+    checkPermissions();
+  }, []);
+
+  const requestPermission = async () => {
+    await requestRecordingPermissionsAsync();
+    await checkPermissions();
+  };
+
   return (
     <View style={styles.screen}>
-      <Text style={styles.heading}>Link.Trigger vertical-center bug</Text>
+      <Text style={styles.heading}>
+        expo-audio: Android mic permission repro
+      </Text>
 
-      {/* Bug case: View inside Link.Trigger with justifyContent:'center' */}
-      <View style={styles.row}>
-        <Link href="/detail" style={styles.link}>
-          <Link.Trigger>
-            <View style={styles.triggerView}>
-              <Text style={styles.linkText}>Bug: not centered</Text>
-            </View>
-          </Link.Trigger>
-        </Link>
+      <View style={styles.permBox}>
+        <Text style={styles.permLabel}>Microphone Permission</Text>
+        {permStatus ? (
+          <>
+            <Text style={styles.permValue}>status: {permStatus.status}</Text>
+            <Text style={styles.permValue}>expires: {permStatus.expires}</Text>
+            <Text style={styles.permValue}>
+              granted: {String(permStatus.granted)}
+            </Text>
+            <Text style={styles.permValue}>
+              canAskAgain: {String(permStatus.canAskAgain)}
+            </Text>
+          </>
+        ) : (
+          <Text style={styles.permValue}>Loading…</Text>
+        )}
       </View>
 
-      {/* Control: same layout without Link.Trigger wrapper */}
-      <View style={styles.row}>
-        <View style={[styles.link, styles.controlLink]}>
-          <View style={styles.triggerView}>
-            <Text style={styles.linkText}>Control: centered</Text>
-          </View>
-        </View>
+      <View style={styles.buttons}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.button,
+            styles.permButton,
+            pressed && styles.pressed,
+          ]}
+          onPress={requestPermission}
+        >
+          <Text style={styles.buttonText}>Request Permission</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -40,38 +79,50 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#111',
-    paddingTop: 100,
+    paddingTop: 80,
     paddingHorizontal: 20,
-    gap: 16,
+    gap: 20,
   },
   heading: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
-    marginBottom: 8,
   },
-  row: {
-    flexDirection: 'row',
+  permBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 10,
+    padding: 14,
+    gap: 4,
+  },
+  permLabel: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  permValue: {
+    color: '#9ca3af',
+    fontSize: 14,
+    fontFamily: 'monospace',
+  },
+  buttons: {
+    gap: 12,
+  },
+  button: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 10,
     alignItems: 'center',
   },
-  link: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  permButton: {
+    backgroundColor: '#7c3aed',
   },
-  controlLink: {
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1,
+  pressed: {
+    opacity: 0.7,
   },
-  triggerView: {
-    // Note: This wasn't even needed with Expo 54
-    justifyContent: 'center',
-  },
-  linkText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#f8fafc',
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
