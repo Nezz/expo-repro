@@ -41,7 +41,8 @@
         {
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for the audio recording repro."
         }
-      ]
+      ],
+      "expo-asset"
     ]
   }
 }
