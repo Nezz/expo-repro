@@ -27,6 +27,10 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "scheme": "expo-repro",
+    "plugins": [
+      "expo-router"
+    ]
   }
 }

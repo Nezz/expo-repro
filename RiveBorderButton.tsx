@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { forwardRef, useEffect, useState } from "react";
+import { StyleSheet, TextInput, TextInputProps, View } from "react-native";
 import {
   Fit,
   RiveView,
@@ -10,46 +10,35 @@ import {
 } from "@rive-app/react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-interface RiveBorderButtonProps {
-  label: string;
-  isFocused: boolean;
-  onPress: () => void;
+interface RiveBorderInputProps extends TextInputProps {
+  nextInputRef?: React.RefObject<TextInput | null>;
 }
 
 /**
- * Minimal repro of FocusableGradientBorder from the main project.
+ * Minimal repro of the login page's FormField + RiveGradientBorder.
  *
- * Uses the same imperative approach:
- *   - useRiveFile  → loads the .riv
- *   - useRive      → gives a ref to call setBooleanInputValue
- *
- * The problem: after migrating to the new Rive SDK (0.2.x),
- * toggling `isFocused` between two instances doesn't animate correctly.
+ * Issue: the Rive animation rendered with Fit.Layout around the input
+ * is too big — it overflows well beyond the expected border area.
  */
-export function RiveBorderButton({
-  label,
-  isFocused,
-  onPress,
-}: RiveBorderButtonProps) {
+export const RiveBorderInput = forwardRef<TextInput, RiveBorderInputProps>(
+  function RiveBorderInput({ nextInputRef, ...textInputProps }, ref) {
+  const [isFocused, setIsFocused] = useState(false);
   const { riveViewRef, setHybridRef } = useRive();
-  const { riveFile } = useRiveFile(
-    require("./assets/GradientBorder.riv"),
-  );
+  const { riveFile } = useRiveFile(require("./assets/GradientBorder.riv"));
   const { instance: viewModelInstance } = useViewModelInstance(riveFile);
-  const { setValue: setIsFocused } = useRiveBoolean(
+  const { setValue: setRiveFocused } = useRiveBoolean(
     "isFocused",
     viewModelInstance,
   );
 
   useEffect(() => {
-    setIsFocused?.(isFocused);
-    riveViewRef?.playIfNeeded(); // This animation stops when focused is false, so we need to restart it
-  }, [isFocused, setIsFocused, riveViewRef]);
+    setRiveFocused(isFocused);
+    riveViewRef?.playIfNeeded();
+  }, [isFocused, setRiveFocused, riveViewRef]);
 
   return (
-    <Pressable onPress={onPress}>
+    <View style={styles.outerContainer}>
       <View style={styles.wrapper}>
-        {/* Rive border animation layer */}
         {riveFile && viewModelInstance && (
           <RiveView
             file={riveFile}
@@ -61,30 +50,47 @@ export function RiveBorderButton({
           />
         )}
 
-        {/* Gradient border + inner content */}
         <LinearGradient
-          colors={isFocused ? ["#00B78B", "#443ABC"] : ["#354190", "#4250BA"]}
+          colors={
+            isFocused ? ["#00B78B", "#443ABC"] : ["#354190", "#4250BA"]
+          }
           start={{ x: 0, y: 0 }}
           end={{ x: 0.8, y: 1 }}
           style={styles.gradient}
         >
-          <View style={styles.inner}>
-            <Text style={styles.label}>{label}</Text>
-            <Text style={styles.state}>
-              {isFocused ? "● Focused" : "○ Not focused"}
-            </Text>
+          <View style={styles.fieldInner}>
+            <TextInput
+              ref={ref}
+              style={styles.input}
+              placeholderTextColor="#6b7280"
+              returnKeyType={nextInputRef ? "next" : "done"}
+              onSubmitEditing={() => nextInputRef?.current?.focus()}
+              {...textInputProps}
+              onFocus={(e) => {
+                setIsFocused(true);
+                textInputProps.onFocus?.(e);
+              }}
+              onBlur={(e) => {
+                setIsFocused(false);
+                textInputProps.onBlur?.(e);
+              }}
+            />
           </View>
         </LinearGradient>
       </View>
-    </Pressable>
+    </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "transparent",
+    borderRadius: 16,
+  },
   wrapper: {
     borderRadius: 16,
-    minWidth: 200,
-    overflow: "visible",
   },
   riveAnimation: {
     position: "absolute",
@@ -97,21 +103,20 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 1,
   },
-  inner: {
-    backgroundColor: "#141936",
+  fieldInner: {
+    backgroundColor: "rgba(3, 7, 18, 0.80)",
     borderRadius: 15,
-    paddingVertical: 24,
-    paddingHorizontal: 32,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    minHeight: 52,
   },
-  label: {
-    color: "#FFFFFF",
+  input: {
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: "600",
-  },
-  state: {
-    color: "#9CA3AF",
-    fontSize: 12,
+    fontWeight: "500",
+    flex: 1,
+    padding: 0,
   },
 });
