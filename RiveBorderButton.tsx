@@ -35,14 +35,14 @@ export function RiveBorderButton({
   const { riveFile } = useRiveFile(
     require("./assets/GradientBorder.riv"),
   );
-  const viewModelInstance = useViewModelInstance(riveFile);
+  const { instance: viewModelInstance } = useViewModelInstance(riveFile);
   const { setValue: setIsFocused } = useRiveBoolean(
     "isFocused",
     viewModelInstance,
   );
 
   useEffect(() => {
-    setIsFocused(isFocused);
+    setIsFocused?.(isFocused);
     riveViewRef?.playIfNeeded(); // This animation stops when focused is false, so we need to restart it
   }, [isFocused, setIsFocused, riveViewRef]);
 
@@ -83,6 +83,7 @@ export function RiveBorderButton({
 const styles = StyleSheet.create({
   wrapper: {
     borderRadius: 16,
+    minWidth: 200,
     overflow: "visible",
   },
   riveAnimation: {

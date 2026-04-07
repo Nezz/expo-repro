@@ -9,12 +9,13 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@rive-app/react-native": "^0.2.7",
-    "expo": "~55.0.2",
-    "expo-linear-gradient": "~55.0.8",
-    "expo-status-bar": "~55.0.4",
+    "@rive-app/react-native": "^0.4.0",
+    "expo": "^55.0.12",
+    "expo-linear-gradient": "~55.0.12",
+    "expo-status-bar": "~55.0.5",
     "react": "19.2.0",
-    "react-native": "0.83.2"
+    "react-native": "0.83.4",
+    "react-native-nitro-modules": "^0.35.3"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
