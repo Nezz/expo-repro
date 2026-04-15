@@ -1,7 +1,7 @@
 import { Canvas, Fill, Shader, Skia } from '@shopify/react-native-skia';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View } from 'react-native';
-import { Easing, useDerivedValue, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Easing, useDerivedValue, useFrameCallback, useSharedValue, withTiming } from 'react-native-reanimated';
 
 const BORDER_SHADER_SOURCE = Skia.RuntimeEffect.Make(`
   uniform float  iTime;
@@ -146,24 +146,10 @@ export function GlowBorder({ children, colors, borderRadius = 16 }: GlowBorderPr
 
   const iTime = useSharedValue(0);
   const intensity = useSharedValue(1);
-  const startTimeRef = useRef(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const stopClock = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    stopClock();
-    startTimeRef.current = Date.now();
-    intervalRef.current = setInterval(() => {
-      iTime.value = (Date.now() - startTimeRef.current) / 1000;
-    }, 16);
-    return stopClock;
-  }, [iTime, stopClock]);
+  useFrameCallback((frameInfo) => {
+    iTime.value = frameInfo.timeSinceFirstFrame / 1000;
+  });
 
   const animateIntensity = useCallback(
     (focused: boolean) => {
