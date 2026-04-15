@@ -1,96 +1,117 @@
-import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Alert, AppState, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { GlowBorder } from './GlowBorder';
 
-import { RiveBorderButton } from './RiveBorderButton';
+const HEARTBEAT_INTERVAL_MS = 200;
+const BLOCK_THRESHOLD_MS = 500;
 
-const BUTTONS = [
-  { id: 'A', label: 'Button A' },
-  { id: 'B', label: 'Button B' },
-  { id: 'C', label: 'Button C' },
-  { id: 'D', label: 'Button D' },
-  { id: 'E', label: 'Button E' },
-  { id: 'F', label: 'Button F' },
-  { id: 'G', label: 'Button G' },
-  { id: 'H', label: 'Button H' },
+const GRADIENT_PRESETS = [
+  ['#00C87A', '#00B78B', '#00000000', '#443ABC', '#4250BA', '#00000000'],
+  ['#FF6B6B', '#FF8E53', '#00000000', '#C850C0', '#4158D0', '#00000000'],
+  ['#43E97B', '#38F9D7', '#00000000', '#FA709A', '#FEE140', '#00000000'],
+  ['#0093E9', '#80D0C7', '#00000000', '#FDDB92', '#D1FDFF', '#00000000'],
+  ['#F7971E', '#FFD200', '#00000000', '#FC354C', '#0ABDE3', '#00000000'],
 ];
 
 export default function App() {
-  const [selectedButton, setSelectedButton] = useState('A');
+  const lastTickRef = useRef(Date.now());
+
+  useEffect(() => {
+    const appStateSub = AppState.addEventListener('change', (nextState) => {
+      console.log('[REPRO] AppState changed to:', nextState, 'at', Date.now());
+    });
+
+    const heartbeat = setInterval(() => {
+      const now = Date.now();
+      const gap = now - lastTickRef.current;
+      lastTickRef.current = now;
+      if (gap > BLOCK_THRESHOLD_MS) {
+        console.log(`[REPRO] HEARTBEAT GAP: ${gap}ms — JS thread was blocked`);
+      }
+    }, HEARTBEAT_INTERVAL_MS);
+
+    return () => {
+      appStateSub.remove();
+      clearInterval(heartbeat);
+    };
+  }, []);
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
-      <Text style={styles.title}>Rive Border Toggle Repro</Text>
-      <Text style={styles.subtitle}>
-        Scroll horizontally & press a button to toggle the border animation
-      </Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Skia Shader Stress Repro</Text>
+      <Text style={styles.subtitle}>Background the app, then return. Check Metro logs for HEARTBEAT GAP.</Text>
 
-      <FlatList
-        data={BUTTONS}
-        keyExtractor={(item) => item.id}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        ItemSeparatorComponent={() => <View style={{ width: 24 }} />}
-        renderItem={({ item }) => (
-          <RiveBorderButton
-            label={item.label}
-            isFocused={selectedButton === item.id}
-            onPress={() => setSelectedButton(item.id)}
-          />
-        )}
-      />
+      {GRADIENT_PRESETS.map((colors, i) => (
+        <GlowBorder key={i} colors={colors} borderRadius={16}>
+          <View style={styles.card}>
+            <Text style={styles.cardText}>Shader #{i + 1}</Text>
+          </View>
+        </GlowBorder>
+      ))}
 
-      <View style={styles.statusContainer}>
-        <Text style={styles.statusText}>
-          Currently selected: <Text style={styles.statusHighlight}>{selectedButton}</Text>
-        </Text>
-      </View>
-    </View>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => {
+          console.log('[REPRO] Button pressed at', Date.now());
+          Alert.alert('Hello there!');
+        }}
+      >
+        <Text style={styles.buttonText}>Tap Me</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.hint}>If the alert is delayed after resuming, the JS thread was blocked.</Text>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#0c1027',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
+    paddingTop: 80,
+    paddingBottom: 60,
+    paddingHorizontal: 24,
+    backgroundColor: '#0f0f0f',
+    gap: 24,
+    alignItems: 'stretch',
   },
   title: {
-    color: '#FFFFFF',
     fontSize: 22,
     fontWeight: '700',
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    marginBottom: 40,
+    color: '#fff',
     textAlign: 'center',
   },
-  list: {
-    flexGrow: 0,
-  },
-  listContent: {
-    paddingHorizontal: 30,
-    paddingVertical: 30,
-  },
-  statusContainer: {
-    marginTop: 40,
-    padding: 16,
-    backgroundColor: '#1a1f3d',
-    borderRadius: 12,
-  },
-  statusText: {
-    color: '#9CA3AF',
+  subtitle: {
     fontSize: 14,
+    color: '#aaa',
+    textAlign: 'center',
+    lineHeight: 20,
   },
-  statusHighlight: {
-    color: '#00B78B',
+  card: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+  },
+  cardText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  button: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 24,
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
     fontWeight: '700',
+  },
+  hint: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });
