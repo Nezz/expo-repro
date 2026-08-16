@@ -1,58 +1,127 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useEffect, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { MODULE_COUNT } from './modules';
-
-// At module scope: every module in the import graph has been evaluated by now.
-const evaluatedMs = Date.now() - (globalThis as { __jsStart?: number }).__jsStart!;
-const engine = (globalThis as { HermesInternal?: { getRuntimeProperties?: () => Record<string, unknown> } })
-  .HermesInternal?.getRuntimeProperties?.();
-
-console.log(`${MODULE_COUNT} modules evaluated in ${evaluatedMs}ms`);
+// Long enough that the glass view is certainly laid out while the fade is still
+// running. At 200ms case 2 only fails every few runs.
+const FADE_DURATION = 1500;
 
 export default function App() {
-  const [firstFrameMs, setFirstFrameMs] = useState<number | null>(null);
-
-  const onLayout = (): void => {
-    if (firstFrameMs !== null) return;
-    const ms = Date.now() - (globalThis as { __jsStart?: number }).__jsStart!;
-    console.log(`first frame ${ms}ms after JS started`);
-    setFirstFrameMs(ms);
-  };
+  const [runId, setRunId] = useState(0);
 
   return (
-    <View style={styles.container} onLayout={onLayout}>
-      <Text style={styles.headline}>{firstFrameMs === null ? '—' : `${(firstFrameMs / 1000).toFixed(1)}s`}</Text>
-      <Text style={styles.label}>from JS starting to first frame</Text>
-      <Text style={styles.detail}>{MODULE_COUNT} modules evaluated in {evaluatedMs}ms</Text>
-      <Text style={styles.detail}>
-        {engine
-          ? `Hermes ${engine['OSS Release Version']}${engine['Static Hermes'] ? ' (Static Hermes)' : ''}`
-          : 'not Hermes'}
-      </Text>
+    <View style={styles.screen}>
+      <Stripes />
+
+      <View style={styles.content} key={runId}>
+        <Text style={styles.title}>expo-glass-effect + ancestor opacity</Text>
+        <Text style={styles.subtitle}>
+          {isLiquidGlassAvailable() ? 'Liquid glass available' : 'Liquid glass NOT available on this device'}
+        </Text>
+
+        <Case label="1. No opacity animation — glass renders">
+          <GlassView style={styles.glass} />
+        </Case>
+
+        <Case label="2. Ancestor fades 0 → 1 — no glass, ever (the bug)">
+          <FadeIn>{() => <GlassView style={styles.glass} />}</FadeIn>
+        </Case>
+
+        <Case label="3. Same fade, effect held at 'none' until it ends — glass renders">
+          <FadeIn>
+            {(faded) => <GlassView style={styles.glass} glassEffectStyle={faded ? 'regular' : 'none'} />}
+          </FadeIn>
+        </Case>
+
+        <Pressable style={styles.button} onPress={() => setRunId((id) => id + 1)}>
+          <Text style={styles.buttonLabel}>Run again</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function Case({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.case}>
+      <Text style={styles.caseLabel}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
+// Animates opacity from 0 to 1 on mount, the way any entrance animation does,
+// and reports when it has finished. Reanimated's FadeIn behaves identically;
+// react-native's Animated is used here to keep the repro dependency-free.
+function FadeIn({ children }: { children: (faded: boolean) => React.ReactNode }) {
+  const [opacity] = useState(() => new Animated.Value(0));
+  const [faded, setFaded] = useState(false);
+
+  useEffect(() => {
+    Animated.timing(opacity, {
+      toValue: 1,
+      duration: FADE_DURATION,
+      useNativeDriver: true,
+    }).start(() => setFaded(true));
+  }, [opacity]);
+
+  return <Animated.View style={{ opacity }}>{children(faded)}</Animated.View>;
+}
+
+// Something behind the glass, so the effect is obvious when it renders.
+function Stripes() {
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      {['#ff4d4d', '#ffb84d', '#4dff88', '#4db8ff', '#b84dff', '#ff4db8'].map((color) => (
+        <View key={color} style={[styles.stripe, { backgroundColor: color }]} />
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#fff',
   },
-  headline: {
-    fontSize: 64,
+  stripe: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    padding: 20,
+    paddingTop: 70,
+    gap: 16,
+  },
+  title: {
+    fontSize: 19,
     fontWeight: '700',
+    color: '#000',
   },
-  label: {
-    fontSize: 16,
-    marginBottom: 24,
+  subtitle: {
+    fontSize: 13,
+    color: '#000',
   },
-  detail: {
-    fontFamily: 'monospace',
-    fontSize: 12,
-    color: '#444',
+  case: {
+    gap: 6,
+  },
+  caseLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#000',
+  },
+  glass: {
+    height: 56,
+    borderRadius: 28,
+  },
+  button: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: '#000',
+  },
+  buttonLabel: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });
