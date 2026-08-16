@@ -62,8 +62,8 @@ effective alpha.
 ## What this narrows down
 
 - The opacity **value** is not what matters. Glass renders at every static
-  opacity tested, down to 0.05, and a view laid out at exactly `0` keeps its
-  effect if it is left alone and revealed later.
+  opacity tested, down to 0.05. What matters is only whether alpha is zero at
+  the single moment the effect is installed.
 - The view is not permanently broken. Any fresh install — a `glassEffectStyle`
   change, or a window re-attach — brings the effect back.
 - The fade duration is 1.5s here to make it deterministic. At a realistic 200ms
