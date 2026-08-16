@@ -23,21 +23,58 @@ The app shows three `GlassView`s over a striped background:
 
 "Run again" remounts all three.
 
+## Root cause
+
+Instrumenting `GlassView.swift` with a log in `layoutSubviews`, `didMoveToWindow`,
+`applyGlassStyle` and `updateEffect` shows the mechanism:
+
+- The `UIGlassEffect` is installed exactly once, on the first `layoutSubviews`
+  after the view enters a window, latched by `isMounted`.
+- If the view's effective alpha is `0` at that instant, UIKit does not
+  materialise the glass. The install silently does nothing.
+- Nothing installs it again. `glassStyle` is unchanged, so `applyGlassStyle`
+  early-returns, and `updateEffect` is only reached again on a prop change or a
+  window re-attach.
+
+Side-by-side, the only difference between a view that renders and one that does
+not is the ancestor's alpha at that one moment:
+
+```
+static  layoutSubviews ancestorAlpha=1.000 → effect installed → glass
+fading  layoutSubviews ancestorAlpha=0.000 → effect installed → nothing, ever
+```
+
+A view mounted at `opacity: 0` and later set to `1` does recover, but only by
+accident: `opacity: 1` makes the wrapper flattenable, so Fabric removes it and
+re-parents the glass view, which resets `isMounted` and re-installs the effect
+at full alpha.
+
+That explains the rest of the behaviour. The `glassEffectStyle` workaround works
+because a style change forces a fresh install. Starting the fade above zero works
+because alpha is non-zero at first layout. The animation driver is irrelevant,
+since neither driver changes the shadow tree. And it is intermittent because it
+is a race between the animation's first frame and the first layout pass.
+
+A fix would be for the module to stop treating the first install as final — for
+example re-applying the effect on a later layout if the install happened at zero
+effective alpha.
+
 ## What this narrows down
 
-- It is the **first layout under a transparent ancestor** that kills the effect,
-  not the animation as such. Case 3 runs exactly the same fade and renders fine,
-  because the effect is only switched on once the ancestor is opaque.
-- The view recovers if the effect is applied later — the native view is not
-  permanently broken, only the effect applied during the fade is lost.
+- The opacity **value** is not what matters. Glass renders at every static
+  opacity tested, down to 0.05, and a view laid out at exactly `0` keeps its
+  effect if it is left alone and revealed later.
+- The view is not permanently broken. Any fresh install — a `glassEffectStyle`
+  change, or a window re-attach — brings the effect back.
 - The fade duration is 1.5s here to make it deterministic. At a realistic 200ms
-  case 2 fails only every few runs, which is what makes this hard to spot in a
-  real app: it looks like a random glitch.
-- `withInitialValues({ opacity: 0.01 })`, sometimes suggested to keep the view
-  from ever hitting exactly `0`, does **not** help. 0.01 fails the same way.
-- Reproduced with `react-native`'s `Animated` (used here, so the repro has no
-  extra dependencies) and with `react-native-reanimated`'s `FadeIn` and
-  `useAnimatedStyle`.
+  it fails only every few runs, which is what makes this hard to spot in a real
+  app: it looks like a random glitch.
+- `withInitialValues({ opacity: 0.01 })`, suggested in #41024 to keep the view
+  from ever hitting exactly `0`, does **not** reliably help — 0.01 sits on the
+  boundary and fails as often as not.
+- Reproduced with `react-native`'s `Animated` under both `useNativeDriver: true`
+  and `false`. #41024 reports the same with `react-native-reanimated` and with
+  `callstack/liquid-glass`, which is an independent implementation.
 
 ## Environment
 
