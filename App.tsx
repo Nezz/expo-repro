@@ -11,8 +11,6 @@ export default function App() {
 
   return (
     <View style={styles.screen}>
-      <Stripes />
-
       <View style={styles.content} key={runId}>
         <Text style={styles.title}>expo-glass-effect + ancestor opacity</Text>
         <Text style={styles.subtitle}>
@@ -68,23 +66,10 @@ function FadeIn({ children }: { children: (faded: boolean) => React.ReactNode })
   return <Animated.View style={{ opacity }}>{children(faded)}</Animated.View>;
 }
 
-// Something behind the glass, so the effect is obvious when it renders.
-function Stripes() {
-  return (
-    <View style={StyleSheet.absoluteFill}>
-      {['#ff4d4d', '#ffb84d', '#4dff88', '#4db8ff', '#b84dff', '#ff4db8'].map((color) => (
-        <View key={color} style={[styles.stripe, { backgroundColor: color }]} />
-      ))}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-  },
-  stripe: {
-    flex: 1,
+    backgroundColor: '#4db8ff',
   },
   content: {
     flex: 1,
