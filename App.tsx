@@ -1,10 +1,14 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 
 // Long enough that the glass view is certainly laid out while the fade is still
 // running. At 200ms case 2 only fails every few runs.
 const FADE_DURATION = 1500;
+
+// Where in the fade each rung of the ladder switches its effect on. The fade is
+// linear, so opacity reaches `threshold` at `threshold * FADE_DURATION`.
+const THRESHOLDS = [0, 0.01, 0.02, 0.03, 0.05, 0.1, 0.25];
 
 export default function App() {
   const [runId, setRunId] = useState(0);
@@ -25,16 +29,34 @@ export default function App() {
           <FadeIn>{() => <GlassView style={styles.glass} />}</FadeIn>
         </Case>
 
-        <Case label="3. Same fade, effect held at 'none' until it ends — glass renders">
-          <FadeIn>
-            {(faded) => <GlassView style={styles.glass} glassEffectStyle={faded ? 'regular' : 'none'} />}
-          </FadeIn>
+        <Case label="3. Ancestor fades 0.05 → 1 — starting above zero">
+          <FadeIn from={0.05}>{() => <GlassView style={styles.glass} />}</FadeIn>
         </Case>
+
+        <Text style={styles.caseLabel}>4. Fades 0 → 1, effect switched on at</Text>
+        <ThresholdLadder />
 
         <Pressable style={styles.button} onPress={() => setRunId((id) => id + 1)}>
           <Text style={styles.buttonLabel}>Run again</Text>
         </Pressable>
       </View>
+    </View>
+  );
+}
+
+// Every rung runs the same 0 → 1 fade, and differs only in how far into that
+// fade it switches the effect from 'none' to 'regular'.
+function ThresholdLadder() {
+  return (
+    <View style={styles.ladderRow}>
+      {THRESHOLDS.map((threshold) => (
+        <View key={threshold} style={styles.rung}>
+          <FadeIn switchAt={threshold}>
+            {(on) => <GlassView style={styles.swatch} glassEffectStyle={on ? 'regular' : 'none'} />}
+          </FadeIn>
+          <Text style={styles.rungLabel}>{threshold}</Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -48,22 +70,35 @@ function Case({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-// Animates opacity from 0 to 1 on mount, the way any entrance animation does,
-// and reports when it has finished. Reanimated's FadeIn behaves identically;
-// react-native's Animated is used here to keep the repro dependency-free.
-function FadeIn({ children }: { children: (faded: boolean) => React.ReactNode }) {
-  const [opacity] = useState(() => new Animated.Value(0));
-  const [faded, setFaded] = useState(false);
+/**
+ * Fades opacity from `from` to 1 on mount, linearly, and reports `true` once the
+ * fade has passed `switchAt`.
+ */
+function FadeIn({
+  from = 0,
+  switchAt = 1,
+  children,
+}: {
+  from?: number;
+  switchAt?: number;
+  children: (on: boolean) => React.ReactNode;
+}) {
+  const [opacity] = useState(() => new Animated.Value(from));
+  const [on, setOn] = useState(false);
 
   useEffect(() => {
     Animated.timing(opacity, {
       toValue: 1,
       duration: FADE_DURATION,
+      easing: Easing.linear,
       useNativeDriver: true,
-    }).start(() => setFaded(true));
-  }, [opacity]);
+    }).start();
 
-  return <Animated.View style={{ opacity }}>{children(faded)}</Animated.View>;
+    const timer = setTimeout(() => setOn(true), FADE_DURATION * switchAt);
+    return () => clearTimeout(timer);
+  }, [opacity, switchAt]);
+
+  return <Animated.View style={{ opacity }}>{children(on)}</Animated.View>;
 }
 
 const styles = StyleSheet.create({
@@ -97,6 +132,24 @@ const styles = StyleSheet.create({
   glass: {
     height: 56,
     borderRadius: 28,
+  },
+  ladderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  rung: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  swatch: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+  },
+  rungLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#000',
   },
   button: {
     alignSelf: 'flex-start',
