@@ -1,143 +1,94 @@
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { GlassView } from 'expo-glass-effect';
 import { useEffect, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import Reanimated, { FadeIn } from 'react-native-reanimated';
+import { Screen, ScreenContainer } from 'react-native-screens';
 
-// Long enough that the glass view is certainly laid out while the fade is still
-// running. At 200ms case 2 only fails every few runs.
 const FADE_DURATION = 1500;
-
-// The opacity each rung of the ladder starts its fade from. The effect is left
-// on throughout, so the only variable is where the fade begins.
-const FROM_VALUES = [0, 0.01, 0.02, 0.05, 0.1, 0.25, 0.5];
-
-// Opacities to lay the view out at before jumping it to 1. A swatch at 1% is
-// invisible either way, so the jump is what shows whether the effect survived
-// being installed that transparent.
-const MOUNT_VALUES = [0, 0.005, 0.01, 0.015, 0.02, 0.05, 0.1];
-
-// How long each rung sits at its mount opacity before jumping to 1.
-const REVEAL_DELAY = 2000;
+// The failure is stochastic, so each grid runs the same fade many times over.
+// One screenshot is then one sample per tile rather than one for the whole app.
+const TRIALS = 12;
 
 export default function App() {
   const [runId, setRunId] = useState(0);
+  const [tab, setTab] = useState(0);
 
   return (
     <View style={styles.screen}>
-      <View style={styles.content} key={runId}>
-        <Text style={styles.title}>expo-glass-effect + ancestor opacity</Text>
-        <Text style={styles.subtitle}>
-          {isLiquidGlassAvailable() ? 'Liquid glass available' : 'Liquid glass NOT available on this device'}
-        </Text>
+      {/* Two screens, so leaving and returning detaches the glass from the
+          window and puts it back — the path that regressed in expo#43732. */}
+      <ScreenContainer style={styles.container}>
+        <Screen activityState={tab === 0 ? 2 : 0} style={StyleSheet.absoluteFill}>
+          <View style={styles.content} key={runId}>
+            <Text style={styles.title}>Fade 0 → 1 · {TRIALS} tiles each</Text>
 
-        <Case label="1. No opacity animation — glass renders">
-          <GlassView style={styles.glass} />
-        </Case>
+            <Section label="control, no animation">
+              <GlassView style={styles.control} />
+            </Section>
 
-        <Case label="2. Fades 0 → 1, useNativeDriver: true — no glass, ever (the bug)">
-          <FadeIn>{() => <GlassView style={styles.glass} />}</FadeIn>
-        </Case>
+            <Section label="react-native Animated">
+              <View style={styles.grid}>
+                {Array.from({ length: TRIALS }, (_, i) => (
+                  <AnimatedFadeIn key={i}>
+                    <GlassView style={styles.tile} />
+                  </AnimatedFadeIn>
+                ))}
+              </View>
+            </Section>
 
-        <Case label="2b. Same fade, useNativeDriver: false">
-          <FadeIn native={false}>{() => <GlassView style={styles.glass} />}</FadeIn>
-        </Case>
+            <Section label="react-native-reanimated">
+              <View style={styles.grid}>
+                {Array.from({ length: TRIALS }, (_, i) => (
+                  <Reanimated.View key={i} entering={FadeIn.duration(FADE_DURATION)}>
+                    <GlassView style={styles.tile} />
+                  </Reanimated.View>
+                ))}
+              </View>
+            </Section>
 
-        <Text style={styles.caseLabel}>3. Effect always on, fade starts from</Text>
-        <FromLadder />
+            <Pressable style={styles.button} onPress={() => setRunId((id) => id + 1)}>
+              <Text style={styles.buttonLabel}>Run again ({runId})</Text>
+            </Pressable>
+          </View>
+        </Screen>
 
-        <Text style={styles.caseLabel}>4. Laid out at this opacity, then jumped to 1</Text>
-        <MountLadder />
+        <Screen activityState={tab === 1 ? 2 : 0} style={StyleSheet.absoluteFill}>
+          <View style={styles.content}>
+            <Text style={styles.title}>Second screen</Text>
+            <Text style={styles.label}>Go back to check the glass survived the trip.</Text>
+          </View>
+        </Screen>
+      </ScreenContainer>
 
-        <Pressable style={styles.button} onPress={() => setRunId((id) => id + 1)}>
-          <Text style={styles.buttonLabel}>Run again</Text>
-        </Pressable>
-      </View>
+      <Pressable style={styles.tabButton} onPress={() => setTab((current) => (current === 0 ? 1 : 0))}>
+        <Text style={styles.buttonLabel}>{tab === 0 ? 'Leave screen' : 'Come back'}</Text>
+      </Pressable>
     </View>
   );
 }
 
-// Every rung keeps its effect on the whole time and differs only in the opacity
-// its fade starts from.
-function FromLadder() {
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <View style={styles.ladderRow}>
-      {FROM_VALUES.map((from) => (
-        <View key={from} style={styles.rung}>
-          <FadeIn from={from}>{() => <GlassView style={styles.swatch} />}</FadeIn>
-          <Text style={styles.rungLabel}>{from}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-// No animation anywhere: each rung is laid out at a fixed opacity and later
-// jumped straight to 1, so what shows is whether its effect survived the mount.
-function MountLadder() {
-  return (
-    <View style={styles.ladderRow}>
-      {MOUNT_VALUES.map((from) => (
-        <View key={from} style={styles.rung}>
-          <MountThenReveal from={from}>
-            <GlassView style={styles.swatch} />
-          </MountThenReveal>
-          <Text style={styles.rungLabel}>{from}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function MountThenReveal({ from, children }: { from: number; children: React.ReactNode }) {
-  const [opacity, setOpacity] = useState(from);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setOpacity(1), REVEAL_DELAY);
-    return () => clearTimeout(timer);
-  }, []);
-
-  return <View style={{ opacity }}>{children}</View>;
-}
-
-function Case({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.case}>
-      <Text style={styles.caseLabel}>{label}</Text>
+    <View style={styles.section}>
+      <Text style={styles.label}>{label}</Text>
       {children}
     </View>
   );
 }
 
-/**
- * Fades opacity from `from` to 1 on mount, linearly, and reports `true` once the
- * fade has passed `switchAt`.
- */
-function FadeIn({
-  from = 0,
-  switchAt = 1,
-  native = true,
-  children,
-}: {
-  from?: number;
-  switchAt?: number;
-  native?: boolean;
-  children: (on: boolean) => React.ReactNode;
-}) {
-  const [opacity] = useState(() => new Animated.Value(from));
-  const [on, setOn] = useState(false);
+function AnimatedFadeIn({ children }: { children: React.ReactNode }) {
+  const [opacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     Animated.timing(opacity, {
       toValue: 1,
       duration: FADE_DURATION,
       easing: Easing.linear,
-      useNativeDriver: native,
+      useNativeDriver: true,
     }).start();
+  }, [opacity]);
 
-    const timer = setTimeout(() => setOn(true), FADE_DURATION * switchAt);
-    return () => clearTimeout(timer);
-  }, [opacity, switchAt, native]);
-
-  return <Animated.View style={{ opacity }}>{children(on)}</Animated.View>;
+  return <Animated.View style={{ opacity }}>{children}</Animated.View>;
 }
 
 const styles = StyleSheet.create({
@@ -145,53 +96,53 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#4db8ff',
   },
+  container: {
+    flex: 1,
+  },
   content: {
     flex: 1,
     padding: 20,
     paddingTop: 70,
-    gap: 16,
+    gap: 14,
   },
   title: {
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: '700',
     color: '#000',
   },
-  subtitle: {
-    fontSize: 13,
-    color: '#000',
-  },
-  case: {
+  section: {
     gap: 6,
   },
-  caseLabel: {
-    fontSize: 13,
+  label: {
+    fontSize: 12,
     fontWeight: '600',
     color: '#000',
   },
-  glass: {
-    height: 56,
-    borderRadius: 28,
+  control: {
+    height: 36,
+    borderRadius: 18,
   },
-  ladderRow: {
+  grid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  rung: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  swatch: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-  },
-  rungLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#000',
+  tile: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
   },
   button: {
     alignSelf: 'flex-start',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: '#000',
+  },
+  tabButton: {
+    position: 'absolute',
+    right: 20,
+    bottom: 40,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 24,

@@ -10,18 +10,25 @@ It stays a plain transparent view for the life of the mount.
 
 ```bash
 bun install
-bun ios
+bun start --port 8090
 ```
 
-The app shows three `GlassView`s over a striped background:
+then, in another shell:
 
-| Case | Setup | Result |
-| --- | --- | --- |
-| 1 | No opacity animation | Glass renders |
-| 2 | Ancestor fades `0 → 1` over 1.5s | **No glass, ever** |
-| 3 | Same fade, `glassEffectStyle` held at `'none'` and switched to `'regular'` when the fade ends | Nothing during the fade, then glass renders |
+```bash
+bun ios --no-bundler --port 8090
+```
 
-"Run again" remounts all three.
+The screen shows a `GlassView` that is never animated, then two grids of twelve
+that each fade in from opacity 0 — one driven by react-native's `Animated`, the
+other by `react-native-reanimated`. The failure is stochastic, so the grids run
+the same fade twelve times over: one screenshot is one sample per tile.
+
+The control renders. Most or all of the fading tiles do not, under both
+animation libraries. "Run again" remounts everything for a fresh set of samples.
+
+"Leave screen" detaches the grids from the window and puts them back, which is
+the path from https://github.com/expo/expo/issues/43732.
 
 ## Root cause
 
@@ -55,9 +62,15 @@ because alpha is non-zero at first layout. The animation driver is irrelevant,
 since neither driver changes the shadow tree. And it is intermittent because it
 is a race between the animation's first frame and the first layout pass.
 
-A fix would be for the module to stop treating the first install as final — for
-example re-applying the effect on a later layout if the install happened at zero
-effective alpha.
+## Fix
+
+Hold the install back until the view is actually visible, waiting on a display
+link while it is not, and tear that link down when the view leaves the window.
+Views that are visible when they are laid out install exactly as before.
+
+With that patch applied to `expo-glass-effect`, every tile in both grids renders
+on every run, including cold launches, and the detach/re-attach path still
+recovers its glass.
 
 ## What this narrows down
 
@@ -66,18 +79,19 @@ effective alpha.
   the single moment the effect is installed.
 - The view is not permanently broken. Any fresh install — a `glassEffectStyle`
   change, or a window re-attach — brings the effect back.
-- The fade duration is 1.5s here to make it deterministic. At a realistic 200ms
-  it fails only every few runs, which is what makes this hard to spot in a real
+- The fade runs for 1.5s here to make it deterministic. At a realistic 200ms it
+  fails only every few runs, which is what makes this hard to spot in a real
   app: it looks like a random glitch.
 - `withInitialValues({ opacity: 0.01 })`, suggested in #41024 to keep the view
   from ever hitting exactly `0`, does **not** reliably help — 0.01 sits on the
-  boundary and fails as often as not.
+  boundary and fails as often as not. Around 0.02 it starts to hold.
 - Reproduced with `react-native`'s `Animated` under both `useNativeDriver: true`
-  and `false`. #41024 reports the same with `react-native-reanimated` and with
+  and `false`, and with `react-native-reanimated`. #41024 reports the same with
   `callstack/liquid-glass`, which is an independent implementation.
 
 ## Environment
 
 - expo 57.0.13, react-native 0.86.2, expo-glass-effect 57.0.1
+- react-native-reanimated 4.5.1, react-native-screens
 - iOS 26.4 simulator, iPhone 17 Pro
 - `npx expo-doctor`: 21/21 checks passed
