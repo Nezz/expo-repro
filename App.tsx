@@ -6,9 +6,9 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-nativ
 // running. At 200ms case 2 only fails every few runs.
 const FADE_DURATION = 1500;
 
-// Where in the fade each rung of the ladder switches its effect on. The fade is
-// linear, so opacity reaches `threshold` at `threshold * FADE_DURATION`.
-const THRESHOLDS = [0, 0.01, 0.02, 0.03, 0.05, 0.1, 0.25];
+// The opacity each rung of the ladder starts its fade from. The effect is left
+// on throughout, so the only variable is where the fade begins.
+const FROM_VALUES = [0, 0.01, 0.02, 0.05, 0.1, 0.25, 0.5];
 
 export default function App() {
   const [runId, setRunId] = useState(0);
@@ -29,12 +29,8 @@ export default function App() {
           <FadeIn>{() => <GlassView style={styles.glass} />}</FadeIn>
         </Case>
 
-        <Case label="3. Ancestor fades 0.05 → 1 — starting above zero">
-          <FadeIn from={0.05}>{() => <GlassView style={styles.glass} />}</FadeIn>
-        </Case>
-
-        <Text style={styles.caseLabel}>4. Fades 0 → 1, effect switched on at</Text>
-        <ThresholdLadder />
+        <Text style={styles.caseLabel}>3. Effect always on, fade starts from</Text>
+        <FromLadder />
 
         <Pressable style={styles.button} onPress={() => setRunId((id) => id + 1)}>
           <Text style={styles.buttonLabel}>Run again</Text>
@@ -44,17 +40,15 @@ export default function App() {
   );
 }
 
-// Every rung runs the same 0 → 1 fade, and differs only in how far into that
-// fade it switches the effect from 'none' to 'regular'.
-function ThresholdLadder() {
+// Every rung keeps its effect on the whole time and differs only in the opacity
+// its fade starts from.
+function FromLadder() {
   return (
     <View style={styles.ladderRow}>
-      {THRESHOLDS.map((threshold) => (
-        <View key={threshold} style={styles.rung}>
-          <FadeIn switchAt={threshold}>
-            {(on) => <GlassView style={styles.swatch} glassEffectStyle={on ? 'regular' : 'none'} />}
-          </FadeIn>
-          <Text style={styles.rungLabel}>{threshold}</Text>
+      {FROM_VALUES.map((from) => (
+        <View key={from} style={styles.rung}>
+          <FadeIn from={from}>{() => <GlassView style={styles.swatch} />}</FadeIn>
+          <Text style={styles.rungLabel}>{from}</Text>
         </View>
       ))}
     </View>
