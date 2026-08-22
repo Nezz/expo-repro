@@ -9,6 +9,9 @@ const engine = (globalThis as { HermesInternal?: { getRuntimeProperties?: () => 
   .HermesInternal?.getRuntimeProperties?.();
 
 console.log(`${MODULE_COUNT} modules evaluated in ${evaluatedMs}ms`);
+// Logged so a run is self-verifying: this must report 250829098.0.17 for the
+// fix to be in the build. If it does not, run `bun run postinstall` and rebuild.
+console.log(`engine: ${engine ? JSON.stringify(engine['OSS Release Version']) : 'not Hermes'}`);
 
 export default function App() {
   const [firstFrameMs, setFirstFrameMs] = useState<number | null>(null);
