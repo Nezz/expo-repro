@@ -3,12 +3,19 @@
 // while the dev bundle starts up. Each module is roughly the size of a small
 // source file in a real app.
 //
-// Run with: node scripts/generate-modules.mjs [count]
+// Run with: node scripts/generate-modules.mjs [count] [objectLiteralsPerModule]
+//
+// objectLiteralsPerModule defaults to 0, which produces exactly the same output
+// as the slow-dev-57 branch. Raising it adds that many extra object literals,
+// each with a distinct shape, to every module. Object literal shapes accumulate
+// across lazy compilations, so this knob isolates the cost that still scales
+// quadratically after the Hermes 250829098.0.17 fix.
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const COUNT = Number(process.argv[2] ?? 24000);
+const LITERALS = Number(process.argv[3] ?? 0);
 const CHUNK = 500;
 
 const modules = join(dirname(fileURLToPath(import.meta.url)), '..', 'modules');
@@ -72,7 +79,17 @@ export function reduce${i}(options: Options${i} = defaults${i}): Record<string, 
 export default function m${i}(x: number): number {
   return combine${i}([x, scale${i}(x), pick${i}(defaults${i}, x % 8)]);
 }
-`;
+${extraLiterals(i)}`;
+
+// Each literal gets unique key names so that every one is a distinct shape and
+// none of them dedupe against each other.
+const extraLiterals = (i) =>
+  range(LITERALS)
+    .map(
+      (j) =>
+        `export const shape${i}_${j} = { k${i}_${j}_a: ${i}, k${i}_${j}_b: 'v${i}', k${i}_${j}_c: ${j % 2 === 0}, k${i}_${j}_d: [${i}, ${j}] };\n`
+    )
+    .join('');
 
 for (const i of range(COUNT)) {
   writeFileSync(join(modules, `m${i}.ts`), moduleSource(i));
@@ -107,4 +124,7 @@ ${range(chunkCount)
 `
 );
 
-console.log(`Generated ${COUNT} modules in ${chunkCount} chunks`);
+console.log(
+  `Generated ${COUNT} modules in ${chunkCount} chunks` +
+    (LITERALS ? ` with ${LITERALS} extra object literals each (${COUNT * LITERALS} shapes)` : '')
+);
