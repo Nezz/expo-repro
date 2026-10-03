@@ -1,0 +1,25 @@
+# Opens Chat 1 from the drawer, then opens the drawer again and taps New chat.
+# The drawer's "Last chat:" label is only on screen while the drawer is open.
+# On 4.2.11 this fails at New chat, which the keyboard covers. With Keyboard.dismiss() in
+# components/MenuButton.tsx before openDrawer(), it passes.
+appId: com.adamys.exporepro
+---
+- launchApp:
+    stopApp: true
+- repeat:
+    times: 5
+    commands:
+      - tapOn: "☰ Menu"
+      - waitForAnimationToEnd
+      - tapOn: "Chat 1"
+      - assertVisible: "Chat 1"
+      - tapOn: "☰ Menu"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "new-chat-button"
+      - waitForAnimationToEnd:
+          timeout: 1500
+      - assertVisible:
+          id: "chat-input"
+      - assertNotVisible:
+          text: "Last chat:.*"
