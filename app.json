@@ -6,13 +6,9 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.adamys.exporepro.videorecording"
     },
     "android": {
       "adaptiveIcon": {
@@ -42,7 +38,9 @@
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for the audio recording repro."
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-status-bar",
+      "expo-video"
     ]
   }
 }
