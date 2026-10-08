@@ -9,22 +9,21 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@rive-app/react-native": "^0.4.0",
-    "expo": "^55.0.12",
-    "expo-constants": "~55.0.12",
-    "expo-linear-gradient": "~55.0.12",
-    "expo-linking": "~55.0.11",
-    "expo-router": "~55.0.11",
-    "expo-status-bar": "~55.0.5",
-    "react": "19.2.0",
-    "react-native": "0.83.4",
-    "react-native-nitro-modules": "^0.35.3",
-    "react-native-safe-area-context": "~5.6.2",
-    "react-native-screens": "~4.23.0"
+    "@rive-app/react-native": "0.5.4",
+    "expo": "~57.0.27",
+    "expo-constants": "~57.0.20",
+    "expo-linking": "~57.0.11",
+    "expo-router": "~57.0.24",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-nitro-modules": "0.36.5",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0"
   },
   "devDependencies": {
-    "@types/react": "~19.2.2",
-    "typescript": "~5.9.2"
+    "@types/react": "~19.2.4",
+    "typescript": "~6.0.3"
   },
   "private": true
 }

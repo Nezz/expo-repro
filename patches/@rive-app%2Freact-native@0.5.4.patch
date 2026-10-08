@@ -1,0 +1,319 @@
+diff --git a/android/src/new/java/com/margelo/nitro/rive/HybridRiveFileFactory.kt b/android/src/new/java/com/margelo/nitro/rive/HybridRiveFileFactory.kt
+index f40a42038fe49b33cff90b92ff191abcf70338ca..757cd0ba865494e4316d7b567ce08a6c5a68748d 100644
+--- a/android/src/new/java/com/margelo/nitro/rive/HybridRiveFileFactory.kt
++++ b/android/src/new/java/com/margelo/nitro/rive/HybridRiveFileFactory.kt
+@@ -1,10 +1,7 @@
+ package com.margelo.nitro.rive
+ 
+ import android.annotation.SuppressLint
+-import android.os.Handler
+-import android.os.Looper
+ import android.util.Log
+-import android.view.Choreographer
+ import androidx.annotation.Keep
+ import app.rive.RiveFile
+ import app.rive.RiveFileSource
+@@ -88,6 +85,7 @@ class HybridRiveFileFactory : HybridRiveFileFactorySpec() {
+         app.rive.RiveLog.logger = RiveErrorLogger
+         Log.d(TAG, "RiveErrorLogger installed")
+       }
++      RiveMessagePump.markBusy()
+       return sharedWorker ?: RiveWorkerConfig.createWorker().also {
+         sharedWorker = it
+         Log.d(TAG, "Created CommandQueue (${RiveWorkerConfig.current}), refCount=${it.refCount}")
+@@ -95,27 +93,10 @@ class HybridRiveFileFactory : HybridRiveFileFactorySpec() {
+       }
+     }
+ 
+-    /**
+-     * The experimental Rive SDK's CommandQueue needs to be polled every frame
+-     * to process responses from the C++ command server. Without polling,
+-     * all suspend functions (like RiveFile.fromSource) hang indefinitely.
+-     */
+     private fun startPolling(worker: CommandQueue) {
+       if (pollingStarted) return
+       pollingStarted = true
+-      Handler(Looper.getMainLooper()).post {
+-        val callback = object : Choreographer.FrameCallback {
+-          override fun doFrame(frameTimeNanos: Long) {
+-            try {
+-              worker.pollMessages()
+-            } catch (e: Exception) {
+-              Log.e(TAG, "pollMessages error", e)
+-            }
+-            Choreographer.getInstance().postFrameCallback(this)
+-          }
+-        }
+-        Choreographer.getInstance().postFrameCallback(callback)
+-      }
++      RiveMessagePump.start(worker)
+     }
+   }
+ 
+diff --git a/node_modules/@rive-app/react-native/android/src/new/java/com/margelo/nitro/rive/RiveMessagePump.kt b/android/src/new/java/com/margelo/nitro/rive/RiveMessagePump.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..1c05dbbe844320d246345a47cd44ae8e159a62f6
+--- /dev/null
++++ b/android/src/new/java/com/margelo/nitro/rive/RiveMessagePump.kt
+@@ -0,0 +1,84 @@
++package com.margelo.nitro.rive
++
++import android.os.Handler
++import android.os.Looper
++import android.os.SystemClock
++import android.util.Log
++import android.view.Choreographer
++import app.rive.core.CommandQueue
++
++/**
++ * Polls the shared CommandQueue, whose suspend calls (file loads, view-model
++ * lookups) and flows only complete when it is polled.
++ *
++ * It polls on every vsync while a view's render loop runs or shortly after a
++ * worker lookup (a file load or view update), and on a slow timer otherwise,
++ * so a screen of paused views asks for no vsync at all.
++ *
++ * Main thread only, except [markBusy].
++ */
++internal object RiveMessagePump {
++  private const val TAG = "RiveMessagePump"
++  private const val BUSY_POLL_MS = 1_000L
++  private const val IDLE_POLL_MS = 100L
++
++  private val handler = Handler(Looper.getMainLooper())
++  private var worker: CommandQueue? = null
++  private var activeViewLoops = 0
++  private var busyUntilMs = 0L
++  private var scheduled = false
++  private var scheduledOnVsync = false
++
++  private val frameCallback = Choreographer.FrameCallback { tick() }
++  private val idleRunnable = Runnable { tick() }
++
++  fun start(worker: CommandQueue) {
++    handler.post {
++      this.worker = worker
++      schedule()
++    }
++  }
++
++  // Any thread.
++  fun markBusy() {
++    handler.post {
++      busyUntilMs = SystemClock.uptimeMillis() + BUSY_POLL_MS
++      schedule()
++    }
++  }
++
++  fun viewLoopStarted() {
++    activeViewLoops++
++    schedule()
++  }
++
++  fun viewLoopStopped() {
++    activeViewLoops--
++  }
++
++  private fun tick() {
++    scheduled = false
++    try {
++      worker?.pollMessages()
++    } catch (e: Exception) {
++      Log.e(TAG, "pollMessages error", e)
++    }
++    schedule()
++  }
++
++  private fun schedule() {
++    if (worker == null) return
++    val onVsync = activeViewLoops > 0 || SystemClock.uptimeMillis() < busyUntilMs
++    if (scheduled) {
++      if (scheduledOnVsync || !onVsync) return
++      handler.removeCallbacks(idleRunnable)
++    }
++    scheduled = true
++    scheduledOnVsync = onVsync
++    if (onVsync) {
++      Choreographer.getInstance().postFrameCallback(frameCallback)
++    } else {
++      handler.postDelayed(idleRunnable, IDLE_POLL_MS)
++    }
++  }
++}
+diff --git a/android/src/new/java/com/rive/RiveReactNativeView.kt b/android/src/new/java/com/rive/RiveReactNativeView.kt
+index 36d0baf4de7e5c480a3179fb733b11f35b643427..d36583dbd9326fce483dc0b034983f40e7250851 100644
+--- a/android/src/new/java/com/rive/RiveReactNativeView.kt
++++ b/android/src/new/java/com/rive/RiveReactNativeView.kt
+@@ -23,6 +23,7 @@ import app.rive.core.SurfaceTextureSurface
+ import com.facebook.react.uimanager.ThemedReactContext
+ import com.margelo.nitro.rive.RiveErrorLogger
+ import com.margelo.nitro.rive.RiveLog
++import com.margelo.nitro.rive.RiveMessagePump
+ import kotlinx.coroutines.CompletableDeferred
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.Dispatchers
+@@ -111,11 +112,19 @@ class RiveReactNativeView(context: ThemedReactContext) : FrameLayout(context) {
+   private var lastFrameTimeNs = 0L
+   private var frameCount = 0L
+ 
+-  // While paused the loop still ticks, but only draws when something changed
+-  // (initial content, resize, rebinding) — otherwise a paused view would keep
+-  // re-rendering identical frames at full refresh rate.
++  // A paused view draws only when something changed (initial content, resize,
++  // rebinding, a new surface) and otherwise posts no frame callback, so it
++  // costs nothing per vsync. play() and requestFrame() post it again.
+   private var needsRedraw = true
+ 
++  // Main thread only.
++  private var framePosted = false
++    set(value) {
++      if (field == value) return
++      field = value
++      if (value) RiveMessagePump.viewLoopStarted() else RiveMessagePump.viewLoopStopped()
++    }
++
+   @Volatile
+   private var paused = false
+ 
+@@ -135,6 +144,9 @@ class RiveReactNativeView(context: ThemedReactContext) : FrameLayout(context) {
+             this@RiveReactNativeView.riveSurface = worker.createRiveSurface(SurfaceTextureSurface(st, w, h))
+             Log.d(TAG, "onSurfaceTextureAvailable: surface created")
+             resizeArtboardIfLayout()
++            // A TextureView re-attached to a window gets a new, empty texture:
++            // a paused view must draw its held frame into it.
++            this@RiveReactNativeView.requestRedraw()
+           }
+         }
+       }
+@@ -150,7 +162,7 @@ class RiveReactNativeView(context: ThemedReactContext) : FrameLayout(context) {
+       override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {
+         this@RiveReactNativeView.surfaceWidth = w
+         this@RiveReactNativeView.surfaceHeight = h
+-        this@RiveReactNativeView.needsRedraw = true
++        this@RiveReactNativeView.requestRedraw()
+         // Since 11.7.x the render target keeps its creation-time size and
+         // RiveSurface.resize() is internal to the SDK, so only the artboard
+         // is resized here (same behavior as before the 11.7.2 bump).
+@@ -167,15 +179,10 @@ class RiveReactNativeView(context: ThemedReactContext) : FrameLayout(context) {
+ 
+   private val renderCallback = object : Choreographer.FrameCallback {
+     override fun doFrame(frameTimeNanos: Long) {
++      framePosted = false
+       if (!renderLoopRunning || disposed) return
+ 
+-      if (paused && !needsRedraw) {
+-        // Keep the timebase fresh so resuming advances by one frame, not by
+-        // the whole pause span.
+-        lastFrameTimeNs = frameTimeNanos
+-        Choreographer.getInstance().postFrameCallback(this)
+-        return
+-      }
++      if (paused && !needsRedraw) return
+ 
+       val capPeriodNs = frameRate
+         ?.takeIf { it > 0 }
+@@ -185,7 +192,7 @@ class RiveReactNativeView(context: ThemedReactContext) : FrameLayout(context) {
+       ) {
+         // Skip without touching lastFrameTimeNs: the eventual advance must
+         // cover the full elapsed time so capped playback keeps wall-clock speed.
+-        Choreographer.getInstance().postFrameCallback(this)
++        postFrame()
+         return
+       }
+ 
+@@ -201,7 +208,8 @@ class RiveReactNativeView(context: ThemedReactContext) : FrameLayout(context) {
+       val sm = stateMachineHandle
+       val rs = riveSurface
+ 
+-      if (worker != null && art != null && sm != null && rs != null) {
++      val canDraw = worker != null && art != null && sm != null && rs != null
++      if (canDraw) {
+         try {
+           if (!paused && !settled) {
+             worker.advanceStateMachine(sm, deltaTime)
+@@ -218,24 +226,47 @@ class RiveReactNativeView(context: ThemedReactContext) : FrameLayout(context) {
+         }
+       }
+ 
+-      if (!disposed) {
+-        Choreographer.getInstance().postFrameCallback(this)
++      // A paused view that can't draw yet (no surface while detached) waits
++      // for onSurfaceTextureAvailable or configure to post it again.
++      if (!paused || (needsRedraw && canDraw)) {
++        postFrame()
+       }
+     }
+   }
+ 
++  // Main thread. A loop that stopped while paused restarts with a zero delta,
++  // so resuming advances from the held frame instead of by the pause span.
++  private fun postFrame() {
++    if (framePosted || !renderLoopRunning || disposed) return
++    framePosted = true
++    Choreographer.getInstance().postFrameCallback(renderCallback)
++  }
++
++  private fun requestFrame() {
++    UiThreadUtil.runOnUiThread {
++      if (!framePosted) lastFrameTimeNs = 0L
++      postFrame()
++    }
++  }
++
++  private fun requestRedraw() {
++    needsRedraw = true
++    requestFrame()
++  }
++
+   private fun startRenderLoop() {
+     if (renderLoopRunning) return
+     renderLoopRunning = true
+     lastFrameTimeNs = 0L
+     updateFrameRateHint()
+-    Choreographer.getInstance().postFrameCallback(renderCallback)
++    postFrame()
+   }
+ 
+   private fun stopRenderLoop() {
+     renderLoopRunning = false
+     updateFrameRateHint()
+     Choreographer.getInstance().removeFrameCallback(renderCallback)
++    framePosted = false
+   }
+ 
+   // Advisory platform hint (upstream applies the same one inside its Compose
+@@ -258,7 +289,7 @@ class RiveReactNativeView(context: ThemedReactContext) : FrameLayout(context) {
+   fun configure(config: ViewConfiguration, dataBindingChanged: Boolean, reload: Boolean = false, initialUpdate: Boolean = false) {
+     riveWorker = config.riveWorker
+     activeFit = config.fit
+-    needsRedraw = true
++    requestRedraw()
+     Log.d(
+       TAG,
+       "configure: reload=$reload initialUpdate=$initialUpdate fit=$activeFit surfaceTexture=${surfaceTexture != null} surfaceW=$surfaceWidth surfaceH=$surfaceHeight"
+@@ -461,8 +492,8 @@ class RiveReactNativeView(context: ThemedReactContext) : FrameLayout(context) {
+     val smHandle = stateMachineHandle
+     if (worker != null && smHandle != null) {
+       worker.bindViewModelInstance(smHandle, instance.instanceHandle)
+-      needsRedraw = true
+       settled = false
++      requestRedraw()
+     } else {
+       Log.w(TAG, "Cannot bind VMI: worker or state machine handle not available")
+     }
+@@ -472,6 +503,7 @@ class RiveReactNativeView(context: ThemedReactContext) : FrameLayout(context) {
+     paused = false
+     settled = false
+     updateFrameRateHint()
++    requestFrame()
+   }
+ 
+   fun pause() {
+@@ -488,6 +520,7 @@ class RiveReactNativeView(context: ThemedReactContext) : FrameLayout(context) {
+     paused = false
+     settled = false
+     updateFrameRateHint()
++    requestFrame()
+   }
+ 
+   fun setNumberInputValue(name: String, value: Double, path: String?) {
