@@ -12,6 +12,7 @@
   "dependencies": {
     "expo": "~57.0.24",
     "expo-constants": "~57.0.0",
+    "expo-key-event": "1.9.0",
     "expo-linking": "~57.0.0",
     "expo-router": "~57.0.0",
     "expo-status-bar": "~57.0.1",
