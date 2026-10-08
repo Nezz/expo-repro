@@ -1,0 +1,116 @@
+diff --git a/lib/module/mappers.js b/lib/module/mappers.js
+index 5ecdd096e1bad2bb349a56c8cc25d4a777af7071..99374f844b7229f696f23da5586f0b61733adecb 100644
+--- a/lib/module/mappers.js
++++ b/lib/module/mappers.js
+@@ -70,6 +70,9 @@ function createMapperRegistry() {
+   let mapperRunFinalizers = [];
+   global.__requestMapperRunFinalizer = finalizer => {
+     mapperRunFinalizers.push(finalizer);
++    if (!processingMappers) {
++      armMapperRun();
++    }
+   };
+   let isAnyMapperDirty = false;
+   function mapperRun() {
+@@ -101,15 +104,22 @@ function createMapperRegistry() {
+   }
+   const schedulingFunction = SHOULD_BE_USE_WEB ? requestAnimationFrame : globalThis.requestAnimationFrameFinalizer;
+   function scheduledMapperRun() {
++    mapperRunArmed = false;
+     runRequested = false;
+     mapperRun();
+-    if (!SHOULD_BE_USE_WEB) {
+-      // We always run mappers on native.
+-      schedulingFunction(scheduledMapperRun);
++    if (!SHOULD_BE_USE_WEB && isAnyMapperDirty) {
++      armMapperRun();
+     }
+   }
+-  if (!SHOULD_BE_USE_WEB) {
+-    schedulingFunction(scheduledMapperRun);
++
++  // On native, mappers run in the frame after an input changes, a mapper starts or a props flush is queued,
++  // instead of polling every frame, so an app at rest requests no frames.
++  let mapperRunArmed = false;
++  function armMapperRun() {
++    if (!SHOULD_BE_USE_WEB && !mapperRunArmed) {
++      mapperRunArmed = true;
++      schedulingFunction(scheduledMapperRun);
++    }
+   }
+   global.__mapperRun = mapperRun;
+   function maybeRequestUpdates() {
+@@ -180,11 +190,15 @@ function createMapperRegistry() {
+           isAnyMapperDirty = true;
+           if (SHOULD_BE_USE_WEB) {
+             maybeRequestUpdates();
++          } else {
++            armMapperRun();
+           }
+         });
+       }
+       if (SHOULD_BE_USE_WEB) {
+         maybeRequestUpdates();
++      } else {
++        armMapperRun();
+       }
+     },
+     stop: mapperID => {
+diff --git a/src/mappers.ts b/src/mappers.ts
+index f9c53be9bd86145e9aad6eccad5b0d8ab3dacff0..1cdeda8024924d82dc19e3705e3d4fa01e599bef 100644
+--- a/src/mappers.ts
++++ b/src/mappers.ts
+@@ -89,6 +89,9 @@ function createMapperRegistry() {
+   let mapperRunFinalizers: (() => void)[] = [];
+   global.__requestMapperRunFinalizer = (finalizer: () => void) => {
+     mapperRunFinalizers.push(finalizer);
++    if (!processingMappers) {
++      armMapperRun();
++    }
+   };
+ 
+   let isAnyMapperDirty = false;
+@@ -126,16 +129,22 @@ function createMapperRegistry() {
+     : globalThis.requestAnimationFrameFinalizer;
+ 
+   function scheduledMapperRun() {
++    mapperRunArmed = false;
+     runRequested = false;
+     mapperRun();
+-    if (!SHOULD_BE_USE_WEB) {
+-      // We always run mappers on native.
+-      schedulingFunction(scheduledMapperRun);
++    if (!SHOULD_BE_USE_WEB && isAnyMapperDirty) {
++      armMapperRun();
+     }
+   }
+ 
+-  if (!SHOULD_BE_USE_WEB) {
+-    schedulingFunction(scheduledMapperRun);
++  // On native, mappers run in the frame after an input changes, a mapper starts or a props flush is queued,
++  // instead of polling every frame, so an app at rest requests no frames.
++  let mapperRunArmed = false;
++  function armMapperRun(): void {
++    if (!SHOULD_BE_USE_WEB && !mapperRunArmed) {
++      mapperRunArmed = true;
++      schedulingFunction(scheduledMapperRun);
++    }
+   }
+ 
+   global.__mapperRun = mapperRun;
+@@ -218,11 +227,15 @@ function createMapperRegistry() {
+           isAnyMapperDirty = true;
+           if (SHOULD_BE_USE_WEB) {
+             maybeRequestUpdates();
++          } else {
++            armMapperRun();
+           }
+         });
+       }
+       if (SHOULD_BE_USE_WEB) {
+         maybeRequestUpdates();
++      } else {
++        armMapperRun();
+       }
+     },
+     stop: (mapperID: number) => {

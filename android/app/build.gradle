@@ -77,9 +77,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.drawerrepro"
+    namespace "com.reanimatedidle"
     defaultConfig {
-        applicationId "com.drawerrepro"
+        applicationId "com.reanimatedidle"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

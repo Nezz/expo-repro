@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "DrawerRepro.app"
-               BlueprintName = "DrawerRepro"
-               ReferencedContainer = "container:DrawerRepro.xcodeproj">
+               BuildableName = "ReanimatedIdle.app"
+               BlueprintName = "ReanimatedIdle"
+               ReferencedContainer = "container:ReanimatedIdle.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
-               BuildableName = "DrawerReproTests.xctest"
-               BlueprintName = "DrawerReproTests"
-               ReferencedContainer = "container:DrawerRepro.xcodeproj">
+               BuildableName = "ReanimatedIdleTests.xctest"
+               BlueprintName = "ReanimatedIdleTests"
+               ReferencedContainer = "container:ReanimatedIdle.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "DrawerRepro.app"
-            BlueprintName = "DrawerRepro"
-            ReferencedContainer = "container:DrawerRepro.xcodeproj">
+            BuildableName = "ReanimatedIdle.app"
+            BlueprintName = "ReanimatedIdle"
+            ReferencedContainer = "container:ReanimatedIdle.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "DrawerRepro.app"
-            BlueprintName = "DrawerRepro"
-            ReferencedContainer = "container:DrawerRepro.xcodeproj">
+            BuildableName = "ReanimatedIdle.app"
+            BlueprintName = "ReanimatedIdle"
+            ReferencedContainer = "container:ReanimatedIdle.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
