@@ -10,7 +10,7 @@
     "check": "npx expo-doctor"
   },
   "dependencies": {
-    "@shopify/react-native-skia": "^2.6.2",
+    "@shopify/react-native-skia": "2.14.0",
     "expo": "~55.0.15",
     "expo-status-bar": "~55.0.5",
     "react": "19.2.0",
@@ -32,5 +32,8 @@
       ]
     }
   },
-  "private": true
+  "private": true,
+  "patchedDependencies": {
+    "@shopify/react-native-skia@2.14.0": "patches/@shopify%2Freact-native-skia@2.14.0.patch"
+  }
 }

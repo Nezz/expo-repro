@@ -1,0 +1,391 @@
+diff --git a/cpp/api/JsiSkPoint.h b/cpp/api/JsiSkPoint.h
+index 267afeb..39b3077 100644
+--- a/cpp/api/JsiSkPoint.h
++++ b/cpp/api/JsiSkPoint.h
+@@ -1,7 +1,10 @@
+ #pragma once
+ 
++#include <cstring>
+ #include <memory>
++#include <stdexcept>
+ #include <utility>
++#include <vector>
+ 
+ #include <jsi/jsi.h>
+ 
+@@ -53,6 +56,76 @@ public:
+     }
+   }
+ 
++  /**
++   Reads a list of points into `points`, reusing its storage. The list is
++   either an array of `{ x, y }` objects (or SkPoint host objects), or a
++   Float32Array of interleaved x, y pairs, which is copied in one go. Returns
++   false, leaving `points` untouched, when `value` is neither.
++   */
++  static bool readPoints(jsi::Runtime &runtime, const jsi::Value &value,
++                         std::vector<SkPoint> &points) {
++    if (!value.isObject()) {
++      return false;
++    }
++    auto object = value.asObject(runtime);
++    if (object.isArray(runtime)) {
++      auto array = object.asArray(runtime);
++      auto size = array.size(runtime);
++      auto x = jsi::PropNameID::forAscii(runtime, "x");
++      auto y = jsi::PropNameID::forAscii(runtime, "y");
++      points.resize(size);
++      for (size_t i = 0; i < size; i++) {
++        auto element = array.getValueAtIndex(runtime, i);
++        if (!element.isObject()) {
++          throw std::runtime_error("Couldn't read point value");
++        }
++        auto point = element.asObject(runtime);
++        auto px = point.getProperty(runtime, x);
++        auto py = point.getProperty(runtime, y);
++        if (!px.isNumber() || !py.isNumber()) {
++          throw std::runtime_error("Couldn't read point value");
++        }
++        points[i] = SkPoint::Make(static_cast<float>(px.getNumber()),
++                                  static_cast<float>(py.getNumber()));
++      }
++      return true;
++    }
++    return readFloat32Array(runtime, object, points);
++  }
++
++  /**
++   Copies a Float32Array of interleaved x, y pairs into `points`, reusing its
++   storage. Returns false when `object` is not a Float32Array.
++   */
++  static bool readFloat32Array(jsi::Runtime &runtime, const jsi::Object &object,
++                               std::vector<SkPoint> &points) {
++    static_assert(sizeof(SkPoint) == 2 * sizeof(float),
++                  "SkPoint must be two packed floats");
++    auto float32Array = runtime.global().getProperty(runtime, "Float32Array");
++    if (!float32Array.isObject() ||
++        !object.instanceOf(runtime,
++                           float32Array.asObject(runtime).asFunction(runtime))) {
++      return false;
++    }
++    auto length = static_cast<size_t>(
++        object.getProperty(runtime, "length").asNumber());
++    if (length % 2 != 0) {
++      throw std::runtime_error(
++          "A Float32Array of points must hold x, y pairs");
++    }
++    auto byteOffset = static_cast<size_t>(
++        object.getProperty(runtime, "byteOffset").asNumber());
++    auto buffer = object.getProperty(runtime, "buffer")
++                      .asObject(runtime)
++                      .getArrayBuffer(runtime);
++    points.resize(length / 2);
++    if (length > 0) {
++      std::memcpy(points.data(), buffer.data(runtime) + byteOffset,
++                  length * sizeof(float));
++    }
++    return true;
++  }
++
+   /**
+   Returns the jsi object from a host object of this type
+  */
+diff --git a/cpp/api/JsiSkVertices.h b/cpp/api/JsiSkVertices.h
+index 3d6abda..732d396 100644
+--- a/cpp/api/JsiSkVertices.h
++++ b/cpp/api/JsiSkVertices.h
+@@ -6,6 +6,7 @@
+ #include <vector>
+ 
+ #include "JsiSkNativeObjects.h"
++#include "JsiSkPoint.h"
+ #include "JsiSkRect.h"
+ 
+ #pragma clang diagnostic push
+@@ -72,29 +73,22 @@ public:
+       std::vector<SkColor> colors;
+       std::vector<uint16_t> indices;
+ 
+-      auto jsiPositions = arguments[1].asObject(runtime).asArray(runtime);
+-      auto positionsSize = static_cast<int>(jsiPositions.size(runtime));
+-      positions.reserve(positionsSize);
+-      for (int i = 0; i < positionsSize; i++) {
+-        std::shared_ptr<SkPoint> point = JsiSkPoint::fromValue(
+-            runtime,
+-            jsiPositions.getValueAtIndex(runtime, i).asObject(runtime));
+-        positions.push_back(*point.get());
++      if (!JsiSkPoint::readPoints(runtime, arguments[1], positions)) {
++        throw jsi::JSError(runtime, "The positions must be an array of points "
++                                    "or a Float32Array of x, y pairs");
+       }
++      auto positionsSize = static_cast<int>(positions.size());
+ 
+       if (count >= 3 && !arguments[2].isNull() && !arguments[2].isUndefined()) {
+-        auto jsiTexs = arguments[2].asObject(runtime).asArray(runtime);
+-        auto texsSize = jsiTexs.size(runtime);
+-        if (texsSize != positionsSize) {
++        if (!JsiSkPoint::readPoints(runtime, arguments[2], texs)) {
++          throw jsi::JSError(runtime,
++                             "The texture coordinates must be an array of "
++                             "points or a Float32Array of x, y pairs");
++        }
++        if (static_cast<int>(texs.size()) != positionsSize) {
+           throw jsi::JSError(runtime, "The number of texture coordinates must "
+                                       "match the number of positions");
+         }
+-        texs.reserve(texsSize);
+-        for (int i = 0; i < texsSize; i++) {
+-          auto point = JsiSkPoint::fromValue(
+-              runtime, jsiTexs.getValueAtIndex(runtime, i).asObject(runtime));
+-          texs.push_back(*point.get());
+-        }
+       }
+ 
+       if (count >= 4 && !arguments[3].isNull() && !arguments[3].isUndefined()) {
+diff --git a/cpp/api/recorder/Convertor.h b/cpp/api/recorder/Convertor.h
+index 7a52ea2..02f42a4 100644
+--- a/cpp/api/recorder/Convertor.h
++++ b/cpp/api/recorder/Convertor.h
+@@ -16,6 +16,7 @@
+ #include <modules/skparagraph/include/ParagraphStyle.h>
+ 
+ #include "../CustomBlendModes.h"
++#include "../JsiSkPoint.h"
+ #include "api/third_party/CSSColorParser.h"
+ 
+ #include "DataTypes.h"
+@@ -69,6 +70,14 @@ template <typename T> struct unwrap_optional<std::optional<T>> {
+ template <typename T>
+ T getPropertyValue(jsi::Runtime &runtime, const jsi::Value &value);
+ 
++// Updates a command's prop from a shared value. Specialized for types whose
++// storage can be reused from frame to frame.
++template <typename T>
++void assignPropertyValue(jsi::Runtime &runtime, const jsi::Value &value,
++                         T &target) {
++  target = getPropertyValue<T>(runtime, value);
++}
++
+ template <typename T, typename Target>
+ bool convertSelectorProperty(jsi::Runtime &runtime, const jsi::Value &prop,
+                              Target &target, Variables &variables) {
+@@ -137,7 +146,7 @@ void convertPropertyImpl(jsi::Runtime &runtime, const jsi::Object &object,
+     auto conv = [target = &target](jsi::Runtime &runtime,
+                                    const jsi::Object &val) {
+       auto value = val.getProperty(runtime, "value");
+-      *target = getPropertyValue<T>(runtime, value);
++      assignPropertyValue<T>(runtime, value, *target);
+     };
+     variables[name].push_back(conv);
+     conv(runtime, sharedValue);
+@@ -1139,17 +1148,16 @@ template <>
+ inline std::vector<SkPoint> getPropertyValue(jsi::Runtime &runtime,
+                                              const jsi::Value &value) {
+   std::vector<SkPoint> result;
+-  if (value.isObject() && value.asObject(runtime).isArray(runtime)) {
+-    auto array = value.asObject(runtime).asArray(runtime);
+-    size_t size = array.size(runtime);
+-    result.reserve(size);
++  JsiSkPoint::readPoints(runtime, value, result);
++  return result;
++}
+ 
+-    for (size_t i = 0; i < size; i++) {
+-      auto point = processPoint(runtime, array.getValueAtIndex(runtime, i));
+-      result.push_back(point);
+-    }
++template <>
++inline void assignPropertyValue(jsi::Runtime &runtime, const jsi::Value &value,
++                                std::vector<SkPoint> &target) {
++  if (!JsiSkPoint::readPoints(runtime, value, target)) {
++    target.clear();
+   }
+-  return result;
+ }
+ 
+ template <>
+@@ -1430,6 +1438,25 @@ getPropertyValue(jsi::Runtime &runtime, const jsi::Value &value) {
+   return makeOptionalPropertyValue<std::vector<SkPoint>>(runtime, value);
+ }
+ 
++template <>
++inline void assignPropertyValue(jsi::Runtime &runtime, const jsi::Value &value,
++                                std::optional<std::vector<SkPoint>> &target) {
++  if (value.isNull() || value.isUndefined()) {
++    target.reset();
++    return;
++  }
++  if (!target.has_value()) {
++    target.emplace();
++  }
++  try {
++    if (!JsiSkPoint::readPoints(runtime, value, *target)) {
++      target->clear();
++    }
++  } catch (const std::runtime_error &) {
++    target.reset();
++  }
++}
++
+ template <>
+ inline std::optional<std::vector<uint16_t>>
+ getPropertyValue(jsi::Runtime &runtime, const jsi::Value &value) {
+diff --git a/lib/commonjs/skia/web/JsiSkVerticesFactory.js b/lib/commonjs/skia/web/JsiSkVerticesFactory.js
+index 6c3d424..e58adcc 100644
+--- a/lib/commonjs/skia/web/JsiSkVerticesFactory.js
++++ b/lib/commonjs/skia/web/JsiSkVerticesFactory.js
+@@ -19,12 +19,10 @@ const concat = (...arrays) => {
+   }
+   return result;
+ };
+-const MakeVertices = (CanvasKit, mode, positions, textureCoordinates, colors, indices, isVolatile) => new _JsiSkVertices.JsiSkVertices(CanvasKit, CanvasKit.MakeVertices((0, _Host.getEnum)(CanvasKit, "VertexMode", mode), positions.map(({
++const flatten = points => points instanceof Float32Array ? points : points.flatMap(({
+   x,
+   y
+-}) => [x, y]).flat(), (textureCoordinates || []).map(({
+-  x,
+-  y
+-}) => [x, y]).flat(), !colors ? null : colors.reduce((a, c) => concat(a, c)), indices, isVolatile));
++}) => [x, y]);
++const MakeVertices = (CanvasKit, mode, positions, textureCoordinates, colors, indices, isVolatile) => new _JsiSkVertices.JsiSkVertices(CanvasKit, CanvasKit.MakeVertices((0, _Host.getEnum)(CanvasKit, "VertexMode", mode), flatten(positions), flatten(textureCoordinates || []), !colors ? null : colors.reduce((a, c) => concat(a, c)), indices, isVolatile));
+ exports.MakeVertices = MakeVertices;
+ //# sourceMappingURL=JsiSkVerticesFactory.js.map
+\ No newline at end of file
+diff --git a/lib/module/skia/web/JsiSkVerticesFactory.js b/lib/module/skia/web/JsiSkVerticesFactory.js
+index 5f19eb9..d1000da 100644
+--- a/lib/module/skia/web/JsiSkVerticesFactory.js
++++ b/lib/module/skia/web/JsiSkVerticesFactory.js
+@@ -13,11 +13,9 @@ const concat = (...arrays) => {
+   }
+   return result;
+ };
+-export const MakeVertices = (CanvasKit, mode, positions, textureCoordinates, colors, indices, isVolatile) => new JsiSkVertices(CanvasKit, CanvasKit.MakeVertices(getEnum(CanvasKit, "VertexMode", mode), positions.map(({
++const flatten = points => points instanceof Float32Array ? points : points.flatMap(({
+   x,
+   y
+-}) => [x, y]).flat(), (textureCoordinates || []).map(({
+-  x,
+-  y
+-}) => [x, y]).flat(), !colors ? null : colors.reduce((a, c) => concat(a, c)), indices, isVolatile));
++}) => [x, y]);
++export const MakeVertices = (CanvasKit, mode, positions, textureCoordinates, colors, indices, isVolatile) => new JsiSkVertices(CanvasKit, CanvasKit.MakeVertices(getEnum(CanvasKit, "VertexMode", mode), flatten(positions), flatten(textureCoordinates || []), !colors ? null : colors.reduce((a, c) => concat(a, c)), indices, isVolatile));
+ //# sourceMappingURL=JsiSkVerticesFactory.js.map
+\ No newline at end of file
+diff --git a/lib/typescript/src/dom/types/Drawings.d.ts b/lib/typescript/src/dom/types/Drawings.d.ts
+index 401c944..f2757bf 100644
+--- a/lib/typescript/src/dom/types/Drawings.d.ts
++++ b/lib/typescript/src/dom/types/Drawings.d.ts
+@@ -49,8 +49,8 @@ export interface PatchProps extends DrawingNodeProps {
+ }
+ export interface VerticesProps extends DrawingNodeProps {
+     colors?: string[];
+-    vertices: SkPoint[];
+-    textures?: SkPoint[];
++    vertices: SkPoint[] | Float32Array;
++    textures?: SkPoint[] | Float32Array;
+     mode: SkEnum<typeof VertexMode>;
+     blendMode?: SkEnum<typeof BlendMode>;
+     indices?: number[];
+diff --git a/lib/typescript/src/skia/types/Skia.d.ts b/lib/typescript/src/skia/types/Skia.d.ts
+index 8add1ef..ca11a98 100644
+--- a/lib/typescript/src/skia/types/Skia.d.ts
++++ b/lib/typescript/src/skia/types/Skia.d.ts
+@@ -68,7 +68,7 @@ export interface Skia {
+      * @param indices
+      * @param isVolatile
+      */
+-    MakeVertices(mode: VertexMode, positions: SkPoint[], textureCoordinates?: SkPoint[] | null, colors?: SkColor[], indices?: number[] | null, isVolatile?: boolean): SkVertices;
++    MakeVertices(mode: VertexMode, positions: SkPoint[] | Float32Array, textureCoordinates?: SkPoint[] | Float32Array | null, colors?: SkColor[], indices?: number[] | null, isVolatile?: boolean): SkVertices;
+     Data: DataFactory;
+     Image: ImageFactory;
+     AnimatedImage: AnimatedImageFactory;
+diff --git a/lib/typescript/src/skia/web/JsiSkVerticesFactory.d.ts b/lib/typescript/src/skia/web/JsiSkVerticesFactory.d.ts
+index 08a9e27..de273a3 100644
+--- a/lib/typescript/src/skia/web/JsiSkVerticesFactory.d.ts
++++ b/lib/typescript/src/skia/web/JsiSkVerticesFactory.d.ts
+@@ -1,4 +1,4 @@
+ import type { CanvasKit } from "canvaskit-wasm";
+ import type { SkColor, SkPoint, VertexMode } from "../types";
+ import { JsiSkVertices } from "./JsiSkVertices";
+-export declare const MakeVertices: (CanvasKit: CanvasKit, mode: VertexMode, positions: SkPoint[], textureCoordinates?: SkPoint[] | null, colors?: SkColor[], indices?: number[] | null, isVolatile?: boolean) => JsiSkVertices;
++export declare const MakeVertices: (CanvasKit: CanvasKit, mode: VertexMode, positions: SkPoint[] | Float32Array, textureCoordinates?: SkPoint[] | Float32Array | null, colors?: SkColor[], indices?: number[] | null, isVolatile?: boolean) => JsiSkVertices;
+diff --git a/src/dom/types/Drawings.ts b/src/dom/types/Drawings.ts
+index cca0f38..fd7c6d5 100644
+--- a/src/dom/types/Drawings.ts
++++ b/src/dom/types/Drawings.ts
+@@ -93,8 +93,14 @@ export interface PatchProps extends DrawingNodeProps {
+ 
+ export interface VerticesProps extends DrawingNodeProps {
+   colors?: string[];
+-  vertices: SkPoint[];
+-  textures?: SkPoint[];
++  /**
++   * The vertex positions, as points or as a Float32Array of interleaved
++   * x, y pairs. A Float32Array is copied in one go, which is much faster for
++   * meshes that are updated on every frame.
++   */
++  vertices: SkPoint[] | Float32Array;
++  /** The texture coordinates, in the same form as `vertices`. */
++  textures?: SkPoint[] | Float32Array;
+   mode: SkEnum<typeof VertexMode>;
+   blendMode?: SkEnum<typeof BlendMode>;
+   indices?: number[];
+diff --git a/src/skia/types/Skia.ts b/src/skia/types/Skia.ts
+index 7f84453..650078c 100644
+--- a/src/skia/types/Skia.ts
++++ b/src/skia/types/Skia.ts
+@@ -78,16 +78,16 @@ export interface Skia {
+    * Returns an Vertices based on the given positions and optional parameters.
+    * See SkVertices.h (especially the Builder) for more details.
+    * @param mode
+-   * @param positions
+-   * @param textureCoordinates
++   * @param positions - points, or a Float32Array of interleaved x, y pairs.
++   * @param textureCoordinates - in the same form as positions.
+    * @param colors - either a list of int colors or a flattened color array.
+    * @param indices
+    * @param isVolatile
+    */
+   MakeVertices(
+     mode: VertexMode,
+-    positions: SkPoint[],
+-    textureCoordinates?: SkPoint[] | null,
++    positions: SkPoint[] | Float32Array,
++    textureCoordinates?: SkPoint[] | Float32Array | null,
+     colors?: SkColor[],
+     indices?: number[] | null,
+     isVolatile?: boolean
+diff --git a/src/skia/web/JsiSkVerticesFactory.ts b/src/skia/web/JsiSkVerticesFactory.ts
+index 30111b1..210bcf6 100644
+--- a/src/skia/web/JsiSkVerticesFactory.ts
++++ b/src/skia/web/JsiSkVerticesFactory.ts
+@@ -19,11 +19,16 @@ const concat = (...arrays: Float32Array[]) => {
+   return result;
+ };
+ 
++const flatten = (points: SkPoint[] | Float32Array) =>
++  points instanceof Float32Array
++    ? points
++    : points.flatMap(({ x, y }) => [x, y]);
++
+ export const MakeVertices = (
+   CanvasKit: CanvasKit,
+   mode: VertexMode,
+-  positions: SkPoint[],
+-  textureCoordinates?: SkPoint[] | null,
++  positions: SkPoint[] | Float32Array,
++  textureCoordinates?: SkPoint[] | Float32Array | null,
+   colors?: SkColor[],
+   indices?: number[] | null,
+   isVolatile?: boolean
+@@ -32,8 +37,8 @@ export const MakeVertices = (
+     CanvasKit,
+     CanvasKit.MakeVertices(
+       getEnum(CanvasKit, "VertexMode", mode),
+-      positions.map(({ x, y }) => [x, y]).flat(),
+-      (textureCoordinates || []).map(({ x, y }) => [x, y]).flat(),
++      flatten(positions),
++      flatten(textureCoordinates || []),
+       !colors ? null : colors.reduce((a, c) => concat(a, c)),
+       indices,
+       isVolatile
