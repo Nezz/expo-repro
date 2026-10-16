@@ -18,7 +18,9 @@
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0"
+    "react-native-screens": "~4.26.0",
+    "react-native-webview": "13.16.1",
+    "react-native-youtube-bridge": "2.2.3"
   },
   "devDependencies": {
     "@types/react": "~19.2.10",

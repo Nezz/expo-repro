@@ -1,17 +1,27 @@
-import { Link } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { YoutubeView, useYouTubeEvent, useYouTubePlayer } from 'react-native-youtube-bridge';
 
 export default function Index() {
+  const player = useYouTubePlayer('M7lc1UVf-VE', { muted: true, playsinline: true });
+  const [currentTime, setCurrentTime] = useState<number>();
+
+  useYouTubeEvent(player, 'ready', () => {
+    player.seekTo(60);
+    setTimeout(async () => setCurrentTime(await player.getCurrentTime()), 2000);
+  });
+
   return (
     <View style={styles.container}>
-      <Link href="/details" style={styles.link}>
-        Open the screen with a transparent header
-      </Link>
+      <YoutubeView player={player} />
+      <Text style={styles.text}>
+        Called seekTo(60) on ready. Current time 2 s later: {currentTime?.toFixed(1) ?? '…'}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0a0f1a' },
-  link: { color: '#4ade80', fontSize: 18 },
+  container: { flex: 1, justifyContent: 'center', gap: 24 },
+  text: { fontSize: 18, textAlign: 'center' },
 });
