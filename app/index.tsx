@@ -5,13 +5,13 @@ export default function Index() {
   return (
     <View style={styles.container}>
       <Link href="/details" style={styles.link}>
-        Open the screen with a transparent header
+        Push details
       </Link>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0a0f1a' },
-  link: { color: '#4ade80', fontSize: 18 },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  link: { fontSize: 18 },
 });
