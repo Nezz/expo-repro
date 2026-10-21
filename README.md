@@ -1,28 +1,32 @@
-# react-native-keyboard-controller: a hidden status bar comes back for good after a swipe on Android
+# react-native-keyboard-controller: `useKeyboardState` reports a hidden keyboard after a rotation on Android
 
-Expo SDK 57.0.24, React Native 0.86.3 (New Architecture, edge-to-edge), react-native-keyboard-controller 1.22.6
-(1.22.7 and main are the same), react-native-reanimated 4.5.1. Seen on an Android 14 tablet emulator and an Android 16
-phone emulator, in landscape and portrait.
+Expo SDK 57.0.24, React Native 0.86.3 (New Architecture, edge-to-edge), react-native-keyboard-controller 1.22.8
+(main is the same), react-native-reanimated 4.5.1. Seen on a Pixel 7 emulator with Android 16.
 
 ```bash
 bun install
 npx expo run:android --variant release
 ```
 
-1. Open the app. The screen renders `<StatusBar hidden />` from `react-native`, and the status bar is hidden.
-2. Swipe down a short way from the top edge to reveal the bars (`adb shell input swipe <x> 2 <x> 150 150`). If the
-   notification shade opens, close it (`adb shell cmd statusbar collapse`).
-3. Wait 5 seconds.
+1. Open the app and tap the text field. The keyboard opens, and the screen shows `useKeyboardState: isVisible true,
+   height 336` and `KeyboardController.isVisible(): true`.
+2. Rotate to landscape (`adb shell settings put system accelerometer_rotation 0`, then
+   `adb shell settings put system user_rotation 1`).
+3. Rotate back to portrait (`adb shell settings put system user_rotation 0`).
 
-No `KeyboardProvider` is needed: linking the library is enough. Wrapping the screen in one behaves the same.
+Expected: the keyboard is still open, and the screen says so with its height, as after step 1.
 
-Expected: the status bar shows transiently and hides again after a few seconds, as it does with the library removed
-(`bun remove react-native-keyboard-controller`, rebuild).
+Actual: `useKeyboardState` shows `isVisible false, height 0` and `KeyboardController.isVisible()` shows `false`, while
+the keyboard is open. The event log under them shows why: each rotation re-syncs the keyboard with `keyboardDidHide` and
+then `keyboardDidShow`, with no `keyboardWillShow`.
 
-Actual: the status bar stays visible.
+On Android, a keyboard inset that changes outside an inset animation goes through
+`KeyboardAnimationCallback.syncKeyboardPosition`, which emits only `keyboardDidHide` or `keyboardDidShow`
+(`android/src/main/java/com/reactnativekeyboardcontroller/listeners/KeyboardAnimationCallback.kt:377-390`). The state
+that `KeyboardController.isVisible()`, `KeyboardController.state()` and `useKeyboardState` read (`src/module.ts`)
+changes only on `keyboardWillShow` and `keyboardDidHide`, and `useKeyboardState` re-reads it only on those two events,
+so the final `keyboardDidShow` is lost. Handling `keyboardDidShow` in both places fixes it.
 
-The library's `StatusBarManagerCompat` replaces React Native's `StatusBarManager` whenever it is linked, and its
-`setHidden(true)` hides the status bar without setting `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`
-(`android/src/main/java/com/reactnativekeyboardcontroller/modules/statusbar/StatusBarManagerCompatModuleImpl.kt:33-34`),
-so the window keeps `BEHAVIOR_DEFAULT` and a swipe clears the hide. React Native's own module sets that behavior first
-(`ReactAndroid/src/main/java/com/facebook/react/views/view/WindowUtil.kt:130-133`). Setting it the same way before `hide` fixes it.
+| Before (1.22.8) | After the fix |
+| --- | --- |
+| <img src="screenshots/before-pixel-7-emulator-android-16.png" width="300"> | <img src="screenshots/after-pixel-7-emulator-android-16.png" width="300"> |
