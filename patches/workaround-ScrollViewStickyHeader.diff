@@ -1,0 +1,30 @@
+--- a/Libraries/Components/ScrollView/ScrollViewStickyHeader.js
++++ b/Libraries/Components/ScrollView/ScrollViewStickyHeader.js
+@@ -265,6 +265,12 @@
+     isFabric,
+   ]);
+ 
++  useEffect(() => {
++    if (isFabric) {
++      getFlushValue().setValue(0);
++    }
++  }, [animatedTranslateY, translateY, isFabric]);
++
+   const _onLayout = (event: LayoutChangeEvent) => {
+     setLayoutY(event.nativeEvent.layout.y);
+     setLayoutHeight(event.nativeEvent.layout.height);
+@@ -309,6 +315,14 @@
+     </Animated.View>
+   );
+ };
++
++let flushValue: ?Animated.Value = null;
++function getFlushValue(): Animated.Value {
++  if (flushValue == null) {
++    flushValue = new Animated.Value(0, {useNativeDriver: true});
++  }
++  return flushValue;
++}
+ 
+ const styles = StyleSheet.create({
+   fill: {
