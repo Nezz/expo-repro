@@ -84,6 +84,10 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        buildConfigField "boolean", "KEEP_MOUNT_ORDER", findProperty("keepMountOrder") ?: "false"
+    }
+    buildFeatures {
+        buildConfig true
     }
     signingConfigs {
         debug {
@@ -105,11 +109,27 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
+    // JVM tests that drive React Native's real mounting classes under Robolectric (src/test).
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            all {
+                testLogging {
+                    events "passed", "failed", "skipped", "standardOut", "standardError"
+                    exceptionFormat "full"
+                    showStackTraces true
+                }
+            }
+        }
+    }
 }
 
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.16.1")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
