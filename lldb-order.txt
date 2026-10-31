@@ -1,0 +1,19 @@
+# Records the order of the crash's events, one line per breakpoint hit, in
+# $ORDER_LOG (default lldb-order.log). From the repo root, with the app built
+# from source (RCT_USE_PREBUILT_RNCORE=0 pod install) and Metro running:
+#   ORDER_LOG=lldb-order.log lldb -b -s lldb-order.txt
+# then launch the app from the simulator's home screen.
+command script import lldb_order.py
+process attach --name ReproducerApp --waitfor
+breakpoint set --name facebook::react::UIManager::stopSurface
+breakpoint command add 1 -F lldb_order.stop_surface
+breakpoint set --name facebook::react::Scheduler::uiManagerDidDispatchCommand
+breakpoint command add 2 -F lldb_order.dispatch_command
+breakpoint set --name "-[RCTScheduler dealloc]"
+breakpoint command add 3 -F lldb_order.scheduler_dealloc
+breakpoint set --name facebook::react::RuntimeScheduler_Modern::updateRendering
+breakpoint command add 4 -F lldb_order.update_rendering
+breakpoint disable 4
+continue
+script lldb_order.note(lldb.frame, "STOP", lldb.thread.GetStopDescription(100))
+bt 12

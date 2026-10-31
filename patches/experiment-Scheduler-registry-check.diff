@@ -1,0 +1,32 @@
+--- a/node_modules/react-native/ReactCommon/react/renderer/scheduler/Scheduler.cpp
++++ b/node_modules/react-native/ReactCommon/react/renderer/scheduler/Scheduler.cpp
+@@ -304,7 +304,13 @@
+       runtimeScheduler_->scheduleRenderingUpdate(
+           surfaceId,
+           [delegate = delegate_,
++           uiManager = uiManager_,
++           surfaceId,
+            mountingCoordinator = std::move(mountingCoordinator)]() {
++            if (!uiManager->getShadowTreeRegistry().visit(
++                    surfaceId, [](const ShadowTree&) {})) {
++              return;
++            }
+             delegate->schedulerShouldRenderTransactions(mountingCoordinator);
+           });
+     } else {
+@@ -330,9 +336,15 @@
+     runtimeScheduler_->scheduleRenderingUpdate(
+         shadowNode->getSurfaceId(),
+         [delegate = delegate_,
++         uiManager = uiManager_,
++         surfaceId = shadowNode->getSurfaceId(),
+          shadowView = std::move(shadowView),
+          commandName,
+          args]() {
++          if (!uiManager->getShadowTreeRegistry().visit(
++                  surfaceId, [](const ShadowTree&) {})) {
++            return;
++          }
+           delegate->schedulerDidDispatchCommand(shadowView, commandName, args);
+         });
+   }
