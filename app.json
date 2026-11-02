@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "WorkletsReloadRepro",
+    "slug": "worklets-reload-repro",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.example.workletsreloadrepro"
+    },
+    "plugins": [
+      "expo-updates"
+    ]
+  }
+}
