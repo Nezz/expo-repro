@@ -1,0 +1,30 @@
+diff --git a/android/src/main/java/org/reactnative/maskedview/RNCMaskedView.java b/android/src/main/java/org/reactnative/maskedview/RNCMaskedView.java
+index b6af9c4b242b4d41a685d74103df377b91db9315..5ddcbb68f6e2cdb3a9a624fec76b8661e6b862a1 100644
+--- a/android/src/main/java/org/reactnative/maskedview/RNCMaskedView.java
++++ b/android/src/main/java/org/reactnative/maskedview/RNCMaskedView.java
+@@ -77,6 +77,16 @@ public class RNCMaskedView extends ReactViewGroup {
+     mBitmapMaskInvalidated = true;
+   }
+ 
++  // The mask is a bitmap the size of the view: free it now, not at ART's next GC. A re-attach redraws it.
++  @Override
++  protected void onDetachedFromWindow() {
++    super.onDetachedFromWindow();
++    if (mBitmapMask != null) {
++      mBitmapMask.recycle();
++      mBitmapMask = null;
++    }
++  }
++
+   private void updateBitmapMask() {
+     View maskView = getChildAt(0);
+     if (maskView != null) {
+@@ -102,6 +112,8 @@ public class RNCMaskedView extends ReactViewGroup {
+     final Canvas canvas = new Canvas(bitmap);
+ 
+     view.draw(canvas);
++    // The canvas holds the pixels natively until ART finalizes it, which would outlast recycle().
++    canvas.setBitmap(null);
+ 
+     return bitmap;
+   }
