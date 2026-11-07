@@ -1,0 +1,80 @@
+diff --git a/android/src/main/java/org/reactnative/maskedview/RNCMaskedView.java b/android/src/main/java/org/reactnative/maskedview/RNCMaskedView.java
+index b6af9c4..2dde18c 100644
+--- a/android/src/main/java/org/reactnative/maskedview/RNCMaskedView.java
++++ b/android/src/main/java/org/reactnative/maskedview/RNCMaskedView.java
+@@ -28,18 +28,24 @@ public class RNCMaskedView extends ReactViewGroup {
+ 
+   @Override
+   protected void dispatchDraw(Canvas canvas) {
+-    super.dispatchDraw(canvas);
+-
++    // Before the children, so the mask element is hidden while they draw: a MaskedView inside it is then only ever
++    // drawn into this one's mask bitmap.
+     if (mBitmapMaskInvalidated) {
+       // redraw mask element to support animated elements
+-      updateBitmapMask();
++      updateBitmapMask(canvas.isHardwareAccelerated() && mRenderingMode == LAYER_TYPE_HARDWARE);
+ 
+       mBitmapMaskInvalidated = false;
+     }
+ 
++    super.dispatchDraw(canvas);
++
+     // draw the mask
+     if (mBitmapMask != null) {
+-      setLayerType(mRenderingMode, mPaint);
++      // Drawn into another MaskedView's mask bitmap, in software, a layer would only make Android copy this view to one
++      // more bitmap its size on each change.
++      if (canvas.isHardwareAccelerated()) {
++        setLayerType(mRenderingMode, mPaint);
++      }
+       mPaint.setXfermode(mPorterDuffXferMode);
+       canvas.drawBitmap(mBitmapMask, 0, 0, mPaint);
+       mPaint.setXfermode(null);
+@@ -77,27 +83,37 @@ public class RNCMaskedView extends ReactViewGroup {
+     mBitmapMaskInvalidated = true;
+   }
+ 
+-  private void updateBitmapMask() {
++  private void updateBitmapMask(boolean hardware) {
+     View maskView = getChildAt(0);
+     if (maskView != null) {
+       maskView.setVisibility(View.VISIBLE);
+-      if (this.mBitmapMask != null) {
+-        this.mBitmapMask.recycle();
+-      }
+-      this.mBitmapMask = getBitmapFromView(maskView);
++      // The GPU reads an alpha-only bitmap's alpha, but a software canvas draws one as coverage of the paint's opaque
++      // colour, which DST_IN ignores.
++      Bitmap.Config config = hardware ? Bitmap.Config.ALPHA_8 : Bitmap.Config.ARGB_8888;
++      this.mBitmapMask = getBitmapFromView(maskView, this.mBitmapMask, config);
+       maskView.setVisibility(View.INVISIBLE);
+     }
+   }
+ 
+-  public static Bitmap getBitmapFromView(final View view) {
++  // An animated mask element redraws the mask each frame, so the bitmap is reused while its size and config hold.
++  public static Bitmap getBitmapFromView(final View view, final Bitmap previous, final Bitmap.Config config) {
+     view.layout(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight());
+ 
+-    if (view.getMeasuredWidth() <= 0 || view.getMeasuredHeight() <= 0) {
++    final int width = view.getMeasuredWidth();
++    final int height = view.getMeasuredHeight();
++    final boolean reuse = previous != null && previous.getWidth() == width && previous.getHeight() == height
++            && previous.getConfig() == config;
++    if (previous != null && !reuse) {
++      previous.recycle();
++    }
++    if (width <= 0 || height <= 0) {
+       return null;
+     }
+ 
+-    final Bitmap bitmap = Bitmap.createBitmap(view.getMeasuredWidth(),
+-            view.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
++    final Bitmap bitmap = reuse ? previous : Bitmap.createBitmap(width, height, config);
++    if (reuse) {
++      bitmap.eraseColor(0);
++    }
+ 
+     final Canvas canvas = new Canvas(bitmap);
+ 
