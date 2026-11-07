@@ -1,0 +1,9 @@
+appId: com.example.staleflexbasis
+---
+# The same switch with a definite width (width: 50%, flexShrink: 1) in place of flex: 1: the boxes come out equal.
+- launchApp:
+    clearState: true
+- assertVisible: "stacked"
+- tapOn: "Use width: 50%"
+- tapOn: "Side by side"
+- assertVisible: "widths match"

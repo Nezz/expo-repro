@@ -1,0 +1,8 @@
+appId: com.example.staleflexbasis
+---
+# Opens stacked, switches to side by side: the two flex: 1 boxes should be equally wide.
+- launchApp:
+    clearState: true
+- assertVisible: "stacked"
+- tapOn: "Side by side"
+- assertVisible: "widths match"

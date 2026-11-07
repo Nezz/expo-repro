@@ -1,0 +1,8 @@
+{
+  "expo": {
+    "name": "stale-flex-basis",
+    "slug": "stale-flex-basis",
+    "ios": { "bundleIdentifier": "com.example.staleflexbasis" },
+    "android": { "package": "com.example.staleflexbasis" }
+  }
+}
