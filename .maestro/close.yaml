@@ -1,0 +1,11 @@
+# maestro test -e MODE=flatten .maestro/close.yaml   (MODE: flatten, reorder, control, delayed or goBack)
+appId: com.example.screensaddviewat
+---
+- launchApp:
+    stopApp: true
+- tapOn: "Open ${MODE}"
+- assertVisible: "Close"
+- tapOn: "Close"
+- extendedWaitUntil:
+    visible: "Open ${MODE}"
+    timeout: 5000

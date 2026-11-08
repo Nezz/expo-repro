@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "screens-addviewat",
+    "slug": "screens-addviewat",
+    "scheme": "screensaddviewat",
+    "android": {
+      "package": "com.example.screensaddviewat"
+    },
+    "plugins": ["expo-router"]
+  }
+}
