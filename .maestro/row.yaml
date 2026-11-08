@@ -1,0 +1,23 @@
+appId: com.example.linkpreviewunsized
+---
+# Cold-starts the app, long-presses "Long-press me (row)" once, closes the preview and logs every width the
+# previewed screen laid out at. The trigger isn't in the accessibility tree (expo/expo#51328), so it's pressed by
+# point, placed for a 440 x 956 pt iPhone 17 Pro Max.
+- launchApp:
+    clearState: true
+    stopApp: true
+- extendedWaitUntil:
+    visible: "Show widths"
+    timeout: 15000
+- longPressOn:
+    point: "25%,41%"
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    point: "50%,92%"
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn: "Show widths"
+- copyTextFrom:
+    id: "widths"
+- evalScript: "${console.log('row ' + maestro.copiedText)}"
