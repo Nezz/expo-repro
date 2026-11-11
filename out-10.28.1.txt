@@ -1,0 +1,6 @@
+run 0: Unable to create cache directory for remote fonts: /var/folders/5v/yfcp8y412jn4yg6xv_1yqbl40000gn/T/rc-fonts4744699583133524508/rc_paywall_fonts
+  the folder exists afterwards: true
+  logged: Unable to create cache directory for remote fonts: /var/folders/5v/yfcp8y412jn4yg6xv_1yqbl40000gn/T/rc-fonts4744699583133524508/rc_paywall_fonts
+  logged: Error downloading font from http://127.0.0.1:9/Inter-Regular.ttf: Connection refused
+  logged: Failed to download font for Inter
+191 of 200 first loads logged 'Unable to create cache directory' and skipped a font
