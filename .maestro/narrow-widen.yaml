@@ -1,0 +1,18 @@
+appId: com.repro.fitgrow
+---
+- launchApp:
+    stopApp: true
+- takeScreenshot: 1-wide
+- tapOn:
+    id: toggle
+- takeScreenshot: 2-narrow
+- tapOn:
+    id: toggle
+# The first Text stays at the narrow size in a 340 wide box; the remounted control is back at 28.
+- takeScreenshot: 3-widened
+- tapOn:
+    id: toggle
+- tapOn:
+    id: toggle
+# From the second cycle on, the first Text grows back.
+- takeScreenshot: 4-widened-again
