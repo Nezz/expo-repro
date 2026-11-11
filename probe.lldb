@@ -1,0 +1,6 @@
+breakpoint set -n "-[VolumeManager getVolume:rejecter:]"
+breakpoint command add 1
+p (float)[[AVAudioSession sharedInstance] outputVolume]
+DONE
+breakpoint modify --auto-continue true 1
+continue
