@@ -1,0 +1,8 @@
+{
+  "expo": {
+    "name": "scrollview-box-none",
+    "slug": "scrollview-box-none",
+    "ios": { "bundleIdentifier": "com.example.scrollviewboxnone" },
+    "android": { "package": "com.example.scrollviewboxnone" }
+  }
+}

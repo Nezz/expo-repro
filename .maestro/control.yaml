@@ -1,0 +1,7 @@
+appId: com.example.scrollviewboxnone
+---
+- launchApp
+- assertVisible: "Taps: 0"
+- tapOn:
+    point: "15%,50%"
+- assertVisible: "Taps: 1"
