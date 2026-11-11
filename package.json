@@ -1,0 +1,11 @@
+{
+  "name": "i18next-cli-conditional-jsx-text",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "i18next-cli lint"
+  },
+  "devDependencies": {
+    "i18next-cli": "1.85.1"
+  }
+}
