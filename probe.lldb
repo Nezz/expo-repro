@@ -1,0 +1,20 @@
+breakpoint set -r "^-\[AVAudioSession setCategory:"
+breakpoint command add 1
+po $x2
+p/x $x3
+bt 3
+DONE
+breakpoint modify --auto-continue true 1
+breakpoint set -r "^-\[AVAudioSession setActive:"
+breakpoint command add 2
+p/d (int)$x2
+bt 3
+DONE
+breakpoint modify --auto-continue true 2
+breakpoint set -n "-[VolumeManager initVolumeView]"
+breakpoint command add 3
+po [[AVAudioSession sharedInstance] category]
+p/x (unsigned long)[[AVAudioSession sharedInstance] categoryOptions]
+process detach
+DONE
+continue
