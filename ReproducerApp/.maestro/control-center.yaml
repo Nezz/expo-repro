@@ -1,0 +1,24 @@
+# Opens Control Center over the app for a few seconds, which makes it
+# inactive, then checks the rAF rate it logged meanwhile. Expected: at most
+# the display's rate. Fails on React Native 0.88.1.
+appId: org.reactjs.native.example.ReproducerApp
+---
+- launchApp:
+    stopApp: true
+- extendedWaitUntil:
+    visible: 'active: [0-9]+ rAF callbacks/s'
+    timeout: 10000
+- swipe:
+    start: 95%, 0%
+    end: 95%, 60%
+    duration: 400
+- waitForAnimationToEnd:
+    timeout: 5000
+- swipe:
+    start: 50%, 99%
+    end: 50%, 30%
+    duration: 300
+- extendedWaitUntil:
+    visible: 'active: [0-9]+ rAF callbacks/s'
+    timeout: 5000
+- assertNotVisible: 'inactive: [0-9]{4,} rAF callbacks/s'
