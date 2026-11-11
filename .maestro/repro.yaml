@@ -1,0 +1,16 @@
+appId: com.example.repro
+---
+- launchApp
+- tapOn: "Open modal"
+- assertVisible: "A transparent Modal. Now open repro://linked"
+- openLink: "repro://linked"
+# A fresh simulator asks "Open in \"repro\"?" first.
+- tapOn:
+    text: "Open"
+    optional: true
+- assertVisible: "A fullScreenModal screen"
+- tapOn: "Back"
+- assertNotVisible: "A fullScreenModal screen"
+# The Modal is gone from the screen, but every tap on the screen under it is lost.
+- tapOn: "Tap me"
+- assertVisible: "Taps: 1"
