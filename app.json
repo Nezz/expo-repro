@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "rngh-disable-mid-gesture",
+    "slug": "rngh-disable-mid-gesture",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "ios": {
+      "bundleIdentifier": "com.example.rnghdisablemidgesture"
+    }
+  }
+}

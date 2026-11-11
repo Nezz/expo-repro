@@ -1,0 +1,10 @@
+appId: com.example.rnghdisablemidgesture
+---
+- launchApp:
+    clearState: true
+- swipe:
+    from: "enabled: SharedValue"
+    direction: RIGHT
+    duration: 3000
+- assertVisible: "enabled: false"
+- assertVisible: "onDeactivate ran on: UI runtime, frame \\d+"
