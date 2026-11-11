@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "repro",
+    "slug": "repro",
+    "scheme": "repro",
+    "android": {
+      "package": "com.example.repro",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "http", "host": "example.com" },
+            { "scheme": "https", "host": "example.com" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": ["expo-router"]
+  }
+}
