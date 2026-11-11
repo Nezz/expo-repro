@@ -1,0 +1,7 @@
+{
+  "expo": {
+    "name": "slider-second-finger",
+    "slug": "slider-second-finger",
+    "android": { "package": "com.example.slidersecondfinger" }
+  }
+}
