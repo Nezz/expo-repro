@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "skia-mask-budget-repro",
+    "slug": "skia-mask-budget-repro",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.example.skiamaskbudget"
+    },
+    "android": {
+      "package": "com.example.skiamaskbudget"
+    }
+  }
+}
