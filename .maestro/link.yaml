@@ -1,0 +1,21 @@
+# Expo Go, with `npx expo start` running (see push.yaml), plus LINK:
+#   maestro test -e APP_ID=... -e URL=exp://127.0.0.1:8081 -e LINK=exp://127.0.0.1:8081/--/private .maestro/link.yaml
+# Asserts the expected result, so it fails on SDK 58 and passes on SDK 57.
+appId: ${APP_ID}
+---
+- stopApp
+- openLink: ${URL}
+- tapOn:
+    text: "Continue"
+    optional: true
+- tapOn:
+    text: "Close"
+    optional: true
+- extendedWaitUntil:
+    visible: "Stack: index"
+    timeout: 60000
+- openLink: ${LINK}
+- waitForAnimationToEnd
+- takeScreenshot: link
+- assertVisible: "Home #1"
+- assertVisible: "Stack: index"

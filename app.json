@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "guard-false-push",
+    "slug": "guard-false-push",
+    "scheme": "repro",
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
