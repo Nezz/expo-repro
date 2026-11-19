@@ -1,0 +1,9 @@
+{
+  "expo": {
+    "name": "api-route-console-leak",
+    "slug": "api-route-console-leak",
+    "web": { "output": "server" },
+    "plugins": ["expo-router"],
+    "experiments": { "typedRoutes": false, "reactServerFunctions": true }
+  }
+}
