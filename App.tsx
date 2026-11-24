@@ -1,45 +1,52 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import { useState } from 'react';
+import { Button, FlatList, StyleSheet, Text, View } from 'react-native';
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+const ROWS = ['newest', 'middle', 'oldest'];
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
-
+export default function App() {
+  const [rows, setRows] = useState(ROWS);
+  const [mvcp, setMvcp] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const [renders, setRenders] = useState(0);
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
-    </SafeAreaProvider>
-  );
-}
-
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
+    <View style={styles.screen}>
+      <Text testID="offset">Offset: {Math.round(offset)}</Text>
+      <Button
+        title="Remove newest"
+        onPress={() => setRows(current => current.slice(1))}
+      />
+      <Button
+        title={`Re-render (${renders})`}
+        onPress={() => setRenders(count => count + 1)}
+      />
+      <Button
+        title={`MVCP: ${mvcp ? 'on' : 'off'}`}
+        onPress={() => setMvcp(on => !on)}
+      />
+      <FlatList
+        inverted
+        data={rows}
+        keyExtractor={row => row}
+        renderItem={({ item }) => <Text style={styles.row}>{item}</Text>}
+        ListHeaderComponent={<View style={styles.header} />}
+        maintainVisibleContentPosition={
+          mvcp ? { minIndexForVisible: 1 } : undefined
+        }
+        onScroll={event => setOffset(event.nativeEvent.contentOffset.y)}
+        style={styles.list}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  screen: { flex: 1, paddingTop: 64 },
+  list: { flex: 1, backgroundColor: '#eef' },
+  header: { height: 40, backgroundColor: '#fc9' },
+  row: {
+    height: 64,
+    padding: 16,
+    backgroundColor: '#cde',
+    borderBottomWidth: 1,
   },
 });
-
-export default App;
